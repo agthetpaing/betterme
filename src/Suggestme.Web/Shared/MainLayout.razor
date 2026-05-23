@@ -1,0 +1,66 @@
+@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+@inject IAuthService AuthService
+
+<MudLayout>
+    <MudAppBar Elevation="1" Color="Color.Surface" Dense="false">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
+                       OnClick="@ToggleDrawer" />
+        <MudText Class="nav-brand ml-2">BetterMe</MudText>
+        <MudSpacer />
+        <AuthorizeView>
+            <Authorized>
+                <MudIconButton Icon="@Icons.Material.Filled.Notifications" Color="Color.Default" />
+                <MudMenu Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Default" Direction="Direction.Left">
+                    <MudMenuItem Href="/profile">My Profile</MudMenuItem>
+                    <MudMenuItem OnClick="Logout">Sign Out</MudMenuItem>
+                </MudMenu>
+            </Authorized>
+            <NotAuthorized>
+                <MudButton Href="/login" Variant="Variant.Text" Color="Color.Primary">Sign In</MudButton>
+                <MudButton Href="/register" Variant="Variant.Filled" Color="Color.Primary" Class="ml-2">Get Started</MudButton>
+            </NotAuthorized>
+        </AuthorizeView>
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="_drawerOpen" Elevation="2" Variant="DrawerVariant.Responsive" ClipMode="DrawerClipMode.Always">
+        <MudDrawerHeader>
+            <MudText Class="nav-brand">BetterMe</MudText>
+        </MudDrawerHeader>
+        <MudNavMenu>
+            <AuthorizeView Roles="Patient">
+                <MudNavLink Href="/patient/dashboard" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
+                <MudNavLink Href="/patient/resources" Icon="@Icons.Material.Filled.LibraryBooks">Resources</MudNavLink>
+                <MudNavLink Href="/patient/mood" Icon="@Icons.Material.Filled.Mood">Mood Tracker</MudNavLink>
+                <MudNavLink Href="/patient/journal" Icon="@Icons.Material.Filled.Book">Journal</MudNavLink>
+                <MudNavLink Href="/patient/sessions" Icon="@Icons.Material.Filled.CalendarMonth">My Sessions</MudNavLink>
+                <MudNavLink Href="/patient/sessions/book" Icon="@Icons.Material.Filled.AddCircleOutline">Book Session</MudNavLink>
+                <MudNavLink Href="/patient/messages" Icon="@Icons.Material.Filled.Message">Messages</MudNavLink>
+            </AuthorizeView>
+            <AuthorizeView Roles="Psychologist,Admin">
+                <MudNavLink Href="/psych/dashboard" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
+                <MudNavLink Href="/psych/patients" Icon="@Icons.Material.Filled.People">Patients</MudNavLink>
+                <MudNavLink Href="/psych/sessions" Icon="@Icons.Material.Filled.CalendarMonth">Sessions</MudNavLink>
+                <MudNavLink Href="/psych/resources" Icon="@Icons.Material.Filled.LibraryBooks">Resources</MudNavLink>
+            </AuthorizeView>
+        </MudNavMenu>
+    </MudDrawer>
+
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pa-6">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _drawerOpen = true;
+
+    private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
+
+    private async Task Logout()
+    {
+        await AuthService.LogoutAsync();
+        Navigation.NavigateTo("/login", forceLoad: true);
+    }
+}

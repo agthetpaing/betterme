@@ -1,0 +1,113 @@
+﻿@page "/psych/dashboard"
+@attribute [Authorize(Roles = "Psychologist,Admin")]
+@inject IApiClient Api
+
+<PageTitle>Dashboard â€” Suggestme</PageTitle>
+
+<MudText Typo="Typo.h5" Class="page-title">Psychologist Dashboard</MudText>
+<MudText Class="page-subtitle">Overview of your patients and practice</MudText>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+    <MudGrid>
+        @* Stats *@
+        <MudItem xs="6" md="3">
+            <MudPaper Elevation="1" Class="pa-4 text-center" Style="border-radius:12px;">
+                <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Primary" />
+                <MudText Class="stat-card-value mt-2">@_patients.Count</MudText>
+                <MudText Class="stat-card-label">Total Patients</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="6" md="3">
+            <MudPaper Elevation="1" Class="pa-4 text-center" Style="border-radius:12px;">
+                <MudIcon Icon="@Icons.Material.Filled.Stars" Color="Color.Warning" />
+                <MudText Class="stat-card-value mt-2">@_patients.Count(p => p.SubscriptionTier == SubscriptionTier.Premium)</MudText>
+                <MudText Class="stat-card-label">Premium Patients</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="6" md="3">
+            <MudPaper Elevation="1" Class="pa-4 text-center" Style="border-radius:12px;">
+                <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Color="Color.Info" />
+                <MudText Class="stat-card-value mt-2">--</MudText>
+                <MudText Class="stat-card-label">Sessions Today</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="6" md="3">
+            <MudPaper Elevation="1" Class="pa-4 text-center" Style="border-radius:12px;">
+                <MudIcon Icon="@Icons.Material.Filled.LibraryBooks" Color="Color.Secondary" />
+                <MudText Class="stat-card-value mt-2">@_resourceCount</MudText>
+                <MudText Class="stat-card-label">Resources Published</MudText>
+            </MudPaper>
+        </MudItem>
+
+        @* Recent patients *@
+        <MudItem xs="12">
+            <MudText Typo="Typo.h6" Class="mb-3">Recent Patients</MudText>
+            <MudPaper Elevation="1" Style="border-radius:12px;">
+                <MudTable Items="@_patients.Take(10)" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm">
+                    <HeaderContent>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Email</MudTh>
+                        <MudTh>Subscription</MudTh>
+                        <MudTh>Onboarded</MudTh>
+                        <MudTh>Joined</MudTh>
+                        <MudTh>Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Name">@context.FullName</MudTd>
+                        <MudTd DataLabel="Email">@context.Email</MudTd>
+                        <MudTd DataLabel="Subscription">
+                            @if (context.SubscriptionTier == SubscriptionTier.Premium)
+                            {
+                                <span class="tier-badge-premium">Premium</span>
+                            }
+                            else
+                            {
+                                <span class="tier-badge-free">Free</span>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Onboarded">
+                            <MudIcon Icon="@(context.IsOnboarded ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.RadioButtonUnchecked)"
+                                     Color="@(context.IsOnboarded ? Color.Success : Color.Default)" Size="Size.Small" />
+                        </MudTd>
+                        <MudTd DataLabel="Joined">@context.CreatedAt.ToString("MMM dd, yyyy")</MudTd>
+                        <MudTd>
+                            <MudButton Href="@($"/psych/patients/{context.Id}")" Variant="Variant.Text" Color="Color.Primary" Size="Size.Small">
+                                View
+                            </MudButton>
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText Align="Align.Center" Color="Color.Secondary" Class="pa-4">No patients yet.</MudText>
+                    </NoRecordsContent>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private List<UserDto> _patients = new();
+    private int _resourceCount;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var patientsTask = Api.GetPatientsAsync(page: 1, pageSize: 50);
+            var resourcesTask = Api.GetResourcesAsync(page: 1, pageSize: 1);
+
+            await Task.WhenAll(patientsTask, resourcesTask);
+
+            _patients = await patientsTask;
+            _resourceCount = (await resourcesTask).TotalCount;
+        }
+        catch { }
+        finally { _loading = false; }
+    }
+}

@@ -1,0 +1,188 @@
+@page "/patient/messages"
+@attribute [Authorize(Roles = "Patient")]
+@inject IApiClient Api
+@inject ISnackbar Snackbar
+
+<PageTitle>Messages — BetterMe</PageTitle>
+
+<MudText Typo="Typo.h5" Class="page-title">Messages</MudText>
+<MudText Class="page-subtitle mb-4">Check-in messages from your psychologist</MudText>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+}
+else if (!_checkIns.Any())
+{
+    <MudPaper Elevation="1" Class="pa-8 text-center" Style="border-radius:16px;">
+        <MudIcon Icon="@Icons.Material.Filled.MarkEmailUnread" Style="font-size:64px;color:var(--mud-palette-primary-lighten);" />
+        <MudText Typo="Typo.h6" Class="mt-4">No messages yet</MudText>
+        <MudText Color="Color.Secondary" Class="mt-1">Your psychologist's check-in messages will appear here.</MudText>
+    </MudPaper>
+}
+else
+{
+    <MudPaper Elevation="1" Style="border-radius:16px;overflow:hidden;">
+        <MudList T="CheckInDto" Dense="false">
+            @foreach (var (item, index) in _checkIns.Select((c, i) => (c, i)))
+            {
+                <MudListItem @key="item.Id" OnClick="() => ToggleExpand(item.Id)"
+                             Style="@(item.IsRead ? "" : "background:rgba(46,139,122,0.06);")">
+                    <div class="d-flex align-start gap-3 py-1">
+                        @* Unread indicator *@
+                        <div style="min-width:10px;padding-top:6px;">
+                            @if (!item.IsRead)
+                            {
+                                <div style="width:10px;height:10px;border-radius:50%;background:#2E8B7A;"></div>
+                            }
+                        </div>
+
+                        @* Avatar *@
+                        <MudAvatar Color="Color.Primary" Size="Size.Medium">
+                            @item.PsychologistName.Split(' ').Select(p => p.FirstOrDefault()).Take(2).ToArray() is char[] initials
+                                ? new string(initials)
+                                : "?"
+                        </MudAvatar>
+
+                        @* Content *@
+                        <div style="flex:1;min-width:0;">
+                            <div class="d-flex justify-space-between align-center flex-wrap gap-1">
+                                <MudText Style="@($"font-weight:{(item.IsRead ? "400" : "600")};")">
+                                    Dr. @item.PsychologistName
+                                </MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @FormatDate(item.SentAt)
+                                </MudText>
+                            </div>
+
+                            @if (_expanded.Contains(item.Id))
+                            {
+                                <MudText Typo="Typo.body2" Class="mt-1" Style="white-space:pre-wrap;">@item.Message</MudText>
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-1"
+                                         Style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:600px;">
+                                    @item.Message
+                                </MudText>
+                            }
+                        </div>
+
+                        @* Expand icon *@
+                        <MudIconButton Icon="@(_expanded.Contains(item.Id) ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                                       Size="Size.Small" Color="Color.Default"
+                                       OnClick:stopPropagation="true"
+                                       OnClick="() => ToggleExpand(item.Id)" />
+                    </div>
+                </MudListItem>
+                @if (index < _checkIns.Count - 1)
+                {
+                    <MudDivider />
+                }
+            }
+        </MudList>
+    </MudPaper>
+
+    @if (_checkIns.Any(c => !c.IsRead))
+    {
+        <div class="d-flex justify-end mt-3">
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.DoneAll"
+                       OnClick="MarkAllRead"
+                       Disabled="_markingRead">
+                Mark all as read
+            </MudButton>
+        </div>
+    }
+}
+
+@code {
+    private List<CheckInDto> _checkIns = new();
+    private bool _loading = true;
+    private bool _markingRead;
+    private HashSet<Guid> _expanded = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _checkIns = await Api.GetMyCheckInsAsync();
+
+            // Auto-expand the first unread message
+            var firstUnread = _checkIns.FirstOrDefault(c => !c.IsRead);
+            if (firstUnread != null)
+                _expanded.Add(firstUnread.Id);
+        }
+        catch
+        {
+            Snackbar.Add("Could not load messages.", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task ToggleExpand(Guid id)
+    {
+        if (_expanded.Contains(id))
+        {
+            _expanded.Remove(id);
+        }
+        else
+        {
+            _expanded.Add(id);
+
+            // Mark as read when opened
+            var item = _checkIns.FirstOrDefault(c => c.Id == id);
+            if (item != null && !item.IsRead)
+            {
+                await MarkRead(item);
+            }
+        }
+    }
+
+    private async Task MarkRead(CheckInDto item)
+    {
+        try
+        {
+            await Api.MarkCheckInReadAsync(item.Id);
+            item.IsRead = true;
+            StateHasChanged();
+        }
+        catch { /* silently ignore */ }
+    }
+
+    private async Task MarkAllRead()
+    {
+        _markingRead = true;
+        try
+        {
+            var unread = _checkIns.Where(c => !c.IsRead).ToList();
+            foreach (var item in unread)
+            {
+                await Api.MarkCheckInReadAsync(item.Id);
+                item.IsRead = true;
+            }
+            StateHasChanged();
+        }
+        catch
+        {
+            Snackbar.Add("Could not mark messages as read.", Severity.Error);
+        }
+        finally
+        {
+            _markingRead = false;
+        }
+    }
+
+    private static string FormatDate(DateTime utc)
+    {
+        var local = utc.ToLocalTime();
+        var now = DateTime.Now;
+        if (local.Date == now.Date) return $"Today {local:h:mm tt}";
+        if (local.Date == now.Date.AddDays(-1)) return $"Yesterday {local:h:mm tt}";
+        if ((now - local).TotalDays < 7) return local.ToString("dddd h:mm tt");
+        return local.ToString("MMM d, yyyy");
+    }
+}

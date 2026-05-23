@@ -1,0 +1,89 @@
+@page "/register"
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Create Account — BetterMe</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
+    <MudPaper Elevation="2" Class="pa-8" Style="border-radius:16px;">
+        <div class="text-center mb-6">
+            <MudText Typo="Typo.h4" Class="nav-brand">BetterMe</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">Start your wellness journey</MudText>
+        </div>
+
+        <EditForm Model="@_model" OnValidSubmit="HandleRegister">
+            <DataAnnotationsValidator />
+
+            <MudGrid>
+                <MudItem xs="6">
+                    <MudTextField @bind-Value="_model.FirstName" Label="First Name" Variant="Variant.Outlined" FullWidth="true" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudTextField @bind-Value="_model.LastName" Label="Last Name" Variant="Variant.Outlined" FullWidth="true" />
+                </MudItem>
+            </MudGrid>
+
+            <MudTextField @bind-Value="_model.Email" Label="Email" Variant="Variant.Outlined"
+                          InputType="InputType.Email" FullWidth="true" Class="mt-4"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Email" />
+
+            <MudTextField @bind-Value="_model.Password" Label="Password" Variant="Variant.Outlined"
+                          InputType="@(_showPassword ? InputType.Text : InputType.Password)" FullWidth="true" Class="mt-4"
+                          Adornment="Adornment.End" AdornmentIcon="@(_showPassword ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                          OnAdornmentClick="() => _showPassword = !_showPassword"
+                          HelperText="At least 8 characters" />
+
+            <MudSelect @bind-Value="_model.Role" Label="I am a..." Variant="Variant.Outlined" Class="mt-4" FullWidth="true">
+                <MudSelectItem Value="UserRole.Patient">Patient — seeking resources & support</MudSelectItem>
+                <MudSelectItem Value="UserRole.Psychologist">Psychologist — managing patients</MudSelectItem>
+            </MudSelect>
+
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                       FullWidth="true" Size="Size.Large" Disabled="_loading" Class="mt-6">
+                @if (_loading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                Create Account
+            </MudButton>
+        </EditForm>
+
+        <MudDivider Class="my-4" />
+        <MudText Align="Align.Center" Typo="Typo.body2">
+            Already have an account?
+            <MudLink Href="/login" Color="Color.Primary" Typo="Typo.body2">Sign in</MudLink>
+        </MudText>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private RegisterRequest _model = new();
+    private bool _loading;
+    private bool _showPassword;
+
+    private async Task HandleRegister()
+    {
+        _loading = true;
+        try
+        {
+            var (result, error) = await AuthService.RegisterAsync(_model);
+            if (result != null)
+            {
+                Snackbar.Add("Welcome to BetterMe!", Severity.Success);
+                var redirectUrl = result.User.Role == UserRole.Patient
+                    ? "/patient/onboarding"
+                    : "/psych/dashboard";
+                Navigation.NavigateTo(redirectUrl, forceLoad: true);
+            }
+            else
+            {
+                Snackbar.Add(error ?? "Registration failed.", Severity.Error);
+            }
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

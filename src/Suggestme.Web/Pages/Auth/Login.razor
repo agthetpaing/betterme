@@ -1,0 +1,74 @@
+@page "/login"
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Sign In — BetterMe</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-12">
+    <MudPaper Elevation="2" Class="pa-8" Style="border-radius:16px;">
+        <div class="text-center mb-6">
+            <MudText Typo="Typo.h4" Class="nav-brand">BetterMe</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">Your mental wellness companion</MudText>
+        </div>
+
+        <EditForm Model="@_model" OnValidSubmit="HandleLogin">
+            <DataAnnotationsValidator />
+
+            <MudTextField @bind-Value="_model.Email" Label="Email" Variant="Variant.Outlined"
+                          InputType="InputType.Email" FullWidth="true" Class="mb-4"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Email" />
+
+            <MudTextField @bind-Value="_model.Password" Label="Password" Variant="Variant.Outlined"
+                          InputType="@(_showPassword ? InputType.Text : InputType.Password)" FullWidth="true" Class="mb-4"
+                          Adornment="Adornment.End" AdornmentIcon="@(_showPassword ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                          OnAdornmentClick="() => _showPassword = !_showPassword" />
+
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                       FullWidth="true" Size="Size.Large" Disabled="_loading" Class="mb-4">
+                @if (_loading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                Sign In
+            </MudButton>
+        </EditForm>
+
+        <MudDivider Class="my-4" />
+        <MudText Align="Align.Center" Typo="Typo.body2">
+            Don't have an account?
+            <MudLink Href="/register" Color="Color.Primary" Typo="Typo.body2">Create one</MudLink>
+        </MudText>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private LoginRequest _model = new();
+    private bool _loading;
+    private bool _showPassword;
+
+    private async Task HandleLogin()
+    {
+        _loading = true;
+        try
+        {
+            var result = await AuthService.LoginAsync(_model);
+            if (result != null)
+            {
+                var role = result.User.Role;
+                var redirectUrl = role == UserRole.Psychologist || role == UserRole.Admin
+                    ? "/psych/dashboard"
+                    : result.User.IsOnboarded ? "/patient/dashboard" : "/patient/onboarding";
+                Navigation.NavigateTo(redirectUrl, forceLoad: true);
+            }
+            else
+            {
+                Snackbar.Add("Invalid email or password.", Severity.Error);
+            }
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

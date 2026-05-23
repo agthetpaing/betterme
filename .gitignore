@@ -1,0 +1,35 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.swp
+.DS_Store
+
+## Secrets
+**/appsettings.*.json
+!**/appsettings.json
+!**/appsettings.Development.json
+
+## EF Core migrations (keep these)
+
+## Publish output
+publish/
+**/publish/
+
+## Rider / VS Code
+.idea/
+.vscode/
+
+## Blazor WASM publish
+**/wwwroot/_framework/
+
+## NuGet
+*.nupkg
+.nuget/
+packages/
+
+## Logs
+*.log
+logs/

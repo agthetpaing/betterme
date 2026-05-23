@@ -1,0 +1,72 @@
+@inject IDialogService DialogService
+
+<MudCard Elevation="1" Style="border-radius:12px;">
+    <MudCardContent Class="pa-4">
+        <div class="d-flex justify-space-between align-center mb-2">
+            <MudChip Color="@StatusColor" Size="Size.Small" Variant="Variant.Filled">@Session.Status</MudChip>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">@Session.DurationMinutes min</MudText>
+        </div>
+
+        <MudText Style="font-weight:600;" Typo="Typo.subtitle1">
+            @(ShowPatientName ? Session.PatientName : $"Dr. {Session.PsychologistName}")
+        </MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-1">
+            <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
+            @Session.ScheduledAt.ToLocalTime().ToString("dddd, MMMM d · h:mm tt")
+        </MudText>
+
+        @if (!string.IsNullOrEmpty(Session.PatientNotes))
+        {
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+                <b>Notes:</b> @Session.PatientNotes
+            </MudText>
+        }
+
+        @if (Session.Status == SessionStatus.Confirmed && !string.IsNullOrEmpty(Session.MeetingUrl))
+        {
+            <MudButton Href="@Session.MeetingUrl" Target="_blank"
+                       Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.VideoCall" Class="mt-3" FullWidth="true">
+                Join Session
+            </MudButton>
+        }
+    </MudCardContent>
+
+    @if (OnCancel.HasDelegate && Session.Status is SessionStatus.Pending or SessionStatus.Confirmed)
+    {
+        <MudCardActions Class="pa-2">
+            <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Text"
+                       OnClick="ConfirmCancel">
+                Cancel Session
+            </MudButton>
+        </MudCardActions>
+    }
+</MudCard>
+
+@code {
+    [Parameter, EditorRequired] public SessionDto Session { get; set; } = null!;
+    [Parameter] public EventCallback<Guid> OnCancel { get; set; }
+    [Parameter] public bool ShowPatientName { get; set; } = false;
+
+    private Color StatusColor => Session.Status switch
+    {
+        SessionStatus.Pending   => Color.Warning,
+        SessionStatus.Confirmed => Color.Success,
+        SessionStatus.Completed => Color.Primary,
+        SessionStatus.Declined  => Color.Error,
+        SessionStatus.Canceled  => Color.Default,
+        _                       => Color.Default
+    };
+
+    private async Task ConfirmCancel()
+    {
+        var dialog = await DialogService.ShowMessageBox(
+            "Cancel Session",
+            $"Cancel your session on {Session.ScheduledAt.ToLocalTime():MMM d 'at' h:mm tt}?",
+            yesText: "Yes, cancel it",
+            cancelText: "Keep session");
+
+        if (dialog == true)
+            await OnCancel.InvokeAsync(Session.Id);
+    }
+}

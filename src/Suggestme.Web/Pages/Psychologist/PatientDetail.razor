@@ -1,0 +1,227 @@
+﻿@page "/psych/patients/{Id}"
+@attribute [Authorize(Roles = "Psychologist,Admin")]
+@inject IApiClient Api
+@inject ISnackbar Snackbar
+
+<PageTitle>Patient Details â€” Suggestme</PageTitle>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+}
+else if (_patient != null)
+{
+    <MudBreadcrumbs Items="@(new List<BreadcrumbItem> { new("Patients", "/psych/patients"), new(_patient.FullName, null, disabled: true) })" Class="mb-4" />
+
+    <MudGrid>
+        @* Profile header *@
+        <MudItem xs="12">
+            <MudPaper Elevation="1" Class="pa-6" Style="border-radius:16px;">
+                <div class="d-flex align-center gap-4">
+                    <MudAvatar Color="Color.Primary" Size="Size.Large" Style="font-size:24px;">
+                        @_patient.FirstName[0]@_patient.LastName[0]
+                    </MudAvatar>
+                    <div>
+                        <MudText Typo="Typo.h5" Style="font-weight:700;">@_patient.FullName</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">@_patient.Email</MudText>
+                    </div>
+                </div>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+
+                @* Overview *@
+                <MudTabPanel Text="Overview" Icon="@Icons.Material.Filled.Person">
+                    <MudGrid>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Joined</MudText>
+                            <MudText>@_patient.CreatedAt.ToString("MMMM dd, yyyy")</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Onboarded</MudText>
+                            <MudText>@(_patient.IsOnboarded ? "Yes" : "Not yet")</MudText>
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Sessions</MudText>
+                            <MudText>@_sessions.Count total</MudText>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                @* Mood History *@
+                <MudTabPanel Text="Mood History" Icon="@Icons.Material.Filled.Mood">
+                    @if (_moodLoading)
+                    {
+                        <MudSkeleton Height="250px" />
+                    }
+                    else if (_moodEntries.Any())
+                    {
+                        <MudChart ChartType="ChartType.Line"
+                                  ChartSeries="@_moodSeries"
+                                  XAxisLabels="@_moodLabels"
+                                  Width="100%" Height="260px"
+                                  ChartOptions="@(new ChartOptions { YAxisLines = true, YAxisTicks = 1, MaxNumYAxisTicks = 5 })" />
+                        <div class="d-flex justify-center gap-4 mt-2 mb-4">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">1 = Very Low Â· 5 = Excellent</MudText>
+                        </div>
+                        <MudDivider Class="mb-4" />
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">Recent Entries</MudText>
+                        <MudList T="MoodEntryDto" Dense="true">
+                            @foreach (var entry in _moodEntries.Take(10))
+                            {
+                                <MudListItem>
+                                    <div class="d-flex align-center gap-3">
+                                        <span style="font-size:20px;">@MoodEmoji(entry.Level)</span>
+                                        <div style="flex:1;">
+                                            <div class="d-flex justify-space-between">
+                                                <MudText Style="font-weight:600;">@entry.Level</MudText>
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                    @entry.RecordedAt.ToLocalTime().ToString("MMM d, h:mm tt")
+                                                </MudText>
+                                            </div>
+                                            @if (!string.IsNullOrEmpty(entry.Note))
+                                            {
+                                                <MudText Typo="Typo.body2" Color="Color.Secondary">@entry.Note</MudText>
+                                            }
+                                        </div>
+                                    </div>
+                                </MudListItem>
+                                <MudDivider />
+                            }
+                        </MudList>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                            @_patient.FirstName hasn't logged any mood entries yet.
+                        </MudAlert>
+                    }
+                </MudTabPanel>
+
+                @* Sessions *@
+                <MudTabPanel Text="Sessions" Icon="@Icons.Material.Filled.CalendarMonth" BadgeData="@(_sessions.Count(s => s.Status == SessionStatus.Pending))" BadgeColor="Color.Warning">
+                    @if (!_sessions.Any())
+                    {
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">No sessions with this patient yet.</MudAlert>
+                    }
+                    else
+                    {
+                        <MudGrid>
+                            @foreach (var s in _sessions.OrderByDescending(s => s.ScheduledAt))
+                            {
+                                <MudItem xs="12" sm="6">
+                                    <SessionCard Session="s" ShowPatientName="false" />
+                                </MudItem>
+                            }
+                        </MudGrid>
+                    }
+                </MudTabPanel>
+
+                @* Check-ins *@
+                <MudTabPanel Text="Check-ins" Icon="@Icons.Material.Filled.Chat">
+                    <MudTextField @bind-Value="_checkInMessage" Label="@($"Send a check-in message to {_patient?.FirstName}")"
+                                  Variant="Variant.Outlined" Lines="3" FullWidth="true" Class="mb-3"
+                                  Placeholder="How are you doing? I wanted to check in..." />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               Disabled="string.IsNullOrWhiteSpace(_checkInMessage) || _sendingCheckIn"
+                               OnClick="SendCheckIn">
+                        @if (_sendingCheckIn)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                        Send Check-In
+                    </MudButton>
+                </MudTabPanel>
+
+            </MudTabs>
+        </MudItem>
+    </MudGrid>
+}
+else
+{
+    <MudAlert Severity="Severity.Error">Patient not found.</MudAlert>
+}
+
+@code {
+    [Parameter] public string Id { get; set; } = string.Empty;
+
+    private UserDto? _patient;
+    private bool _loading = true;
+
+    private List<MoodEntryDto> _moodEntries = new();
+    private bool _moodLoading = true;
+    private List<ChartSeries> _moodSeries = new();
+    private string[] _moodLabels = Array.Empty<string>();
+
+    private List<SessionDto> _sessions = new();
+
+    private string? _checkInMessage;
+    private bool _sendingCheckIn;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var patientTask = Api.GetPatientAsync(Id);
+            var moodTask = Api.GetPatientMoodAsync(Id, 30);
+            var sessionsTask = Api.GetSessionsAsync();
+
+            await Task.WhenAll(patientTask, moodTask, sessionsTask);
+
+            _patient = await patientTask;
+            _moodEntries = await moodTask;
+            var allSessions = await sessionsTask;
+            _sessions = allSessions.Where(s => s.PatientId == Id).ToList();
+
+            BuildMoodChart();
+        }
+        catch { Snackbar.Add("Could not load patient data.", Severity.Error); }
+        finally
+        {
+            _loading = false;
+            _moodLoading = false;
+        }
+    }
+
+    private void BuildMoodChart()
+    {
+        var today = DateTime.UtcNow.Date;
+        var days = Enumerable.Range(0, 14).Select(i => today.AddDays(-13 + i)).ToList();
+
+        var byDay = _moodEntries
+            .GroupBy(e => e.RecordedAt.Date)
+            .ToDictionary(g => g.Key, g => g.Average(e => (double)e.Level));
+
+        _moodLabels = days.Select(d => d.ToString("M/d")).ToArray();
+        _moodSeries = new List<ChartSeries>
+        {
+            new ChartSeries { Name = "Mood", Data = days.Select(d => byDay.TryGetValue(d, out var v) ? v : 0).ToArray() }
+        };
+    }
+
+    private async Task SendCheckIn()
+    {
+        if (string.IsNullOrWhiteSpace(_checkInMessage) || _patient == null) return;
+        _sendingCheckIn = true;
+        try
+        {
+            await Api.SendCheckInAsync(new SendCheckInRequest { PatientId = Id, Message = _checkInMessage });
+            Snackbar.Add($"Check-in sent to {_patient.FirstName}!", Severity.Success);
+            _checkInMessage = null;
+        }
+        catch { Snackbar.Add("Failed to send check-in.", Severity.Error); }
+        finally { _sendingCheckIn = false; }
+    }
+
+    private string MoodEmoji(MoodLevel level) => level switch
+    {
+        MoodLevel.VeryLow   => "ðŸ˜”",
+        MoodLevel.Low       => "ðŸ˜•",
+        MoodLevel.Neutral   => "ðŸ˜",
+        MoodLevel.Good      => "ðŸ™‚",
+        MoodLevel.Excellent => "ðŸ˜Š",
+        _ => "ðŸ˜"
+    };
+}

@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet --version)",
+      "Bash(dotnet --list-sdks)",
+      "Bash(docker --version)",
+      "Bash(docker-compose --version)",
+      "Bash(dotnet new:*)",
+      "Bash(dotnet sln:*)",
+      "Bash(dotnet add:*)",
+      "Bash(dotnet build:*)",
+      "Bash(del \"C:\\\\SideProjects\\\\FoodForBrain\\\\src\\\\Suggestme.Web\\\\Pages\\\\Psychologist\\\\SessionManagement.razor\")"
+    ]
+  }
+}

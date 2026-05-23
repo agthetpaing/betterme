@@ -1,0 +1,32 @@
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField @bind-Value="Title" Label="Title (optional)" Variant="Variant.Outlined" FullWidth="true" Class="mb-4" />
+        <MudTextField @bind-Value="Body" Label="Write your thoughts..." Variant="Variant.Outlined"
+                      Lines="8" FullWidth="true" Class="mb-4" />
+        <MudSwitch @bind-Value="IsPrivate" Label="Private (only you can see)" Color="Color.Primary" T="bool" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Cancel</MudButton>
+        <MudButton OnClick="Save" Variant="Variant.Filled" Color="Color.Primary" Disabled="string.IsNullOrWhiteSpace(Body)">
+            Save Entry
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public string Body { get; set; } = string.Empty;
+    [Parameter] public bool IsPrivate { get; set; } = true;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Save()
+    {
+        MudDialog.Close(DialogResult.Ok(new JournalResult(Title, Body, IsPrivate)));
+    }
+
+    public record JournalResult(string? Title, string Body, bool IsPrivate);
+}

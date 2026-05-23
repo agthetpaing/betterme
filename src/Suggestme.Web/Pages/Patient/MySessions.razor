@@ -1,0 +1,113 @@
+﻿@page "/patient/sessions"
+@attribute [Authorize(Roles = "Patient")]
+@inject IApiClient Api
+@inject ISnackbar Snackbar
+
+<PageTitle>My Sessions â€” Suggestme</PageTitle>
+
+<div class="d-flex justify-space-between align-center mb-2">
+    <div>
+        <MudText Typo="Typo.h5" Class="page-title">My Sessions</MudText>
+        <MudText Class="page-subtitle">Track your upcoming and past appointments</MudText>
+    </div>
+    <MudButton Href="/patient/sessions/book" Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add">
+        Book Session
+    </MudButton>
+</div>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+    <MudTabs Elevation="0" Rounded="false" ApplyEffectsToContainer="false" PanelClass="pt-4">
+        <MudTabPanel Text="Upcoming" BadgeData="@_upcoming.Count" BadgeColor="Color.Primary">
+            @if (!_upcoming.Any())
+            {
+                <MudPaper Elevation="0" Class="pa-8 text-center" Style="border-radius:12px;background:#f9fafb;">
+                    <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Style="font-size:48px;" Color="Color.Default" />
+                    <MudText Typo="Typo.h6" Class="mt-3">No upcoming sessions</MudText>
+                    <MudText Color="Color.Secondary" Class="mt-1">Book a session with one of our psychologists to get started.</MudText>
+                    <MudButton Href="/patient/sessions/book" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4">
+                        Book Now
+                    </MudButton>
+                </MudPaper>
+            }
+            else
+            {
+                <MudGrid>
+                    @foreach (var s in _upcoming)
+                    {
+                        <MudItem xs="12" md="6">
+                            <SessionCard Session="s" OnCancel="CancelSession" />
+                        </MudItem>
+                    }
+                </MudGrid>
+            }
+        </MudTabPanel>
+
+        <MudTabPanel Text="Pending" BadgeData="@_pending.Count" BadgeColor="Color.Warning">
+            @if (!_pending.Any())
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">No pending requests.</MudAlert>
+            }
+            else
+            {
+                <MudGrid>
+                    @foreach (var s in _pending)
+                    {
+                        <MudItem xs="12" md="6">
+                            <SessionCard Session="s" OnCancel="CancelSession" />
+                        </MudItem>
+                    }
+                </MudGrid>
+            }
+        </MudTabPanel>
+
+        <MudTabPanel Text="Past">
+            @if (!_past.Any())
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">No past sessions yet.</MudAlert>
+            }
+            else
+            {
+                <MudGrid>
+                    @foreach (var s in _past)
+                    {
+                        <MudItem xs="12" md="6">
+                            <SessionCard Session="s" />
+                        </MudItem>
+                    }
+                </MudGrid>
+            }
+        </MudTabPanel>
+    </MudTabs>
+}
+
+@code {
+    private List<SessionDto> _all = new();
+    private List<SessionDto> _upcoming => _all.Where(s => s.Status == SessionStatus.Confirmed && s.ScheduledAt > DateTime.UtcNow).OrderBy(s => s.ScheduledAt).ToList();
+    private List<SessionDto> _pending => _all.Where(s => s.Status == SessionStatus.Pending).OrderBy(s => s.ScheduledAt).ToList();
+    private List<SessionDto> _past => _all.Where(s => s.Status is SessionStatus.Completed or SessionStatus.Canceled or SessionStatus.Declined).OrderByDescending(s => s.ScheduledAt).ToList();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _all = await Api.GetSessionsAsync(); }
+        catch { Snackbar.Add("Could not load sessions.", Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private async Task CancelSession(Guid id)
+    {
+        try
+        {
+            await Api.CancelSessionAsync(id);
+            _all.RemoveAll(s => s.Id == id);
+            Snackbar.Add("Session cancelled.", Severity.Info);
+        }
+        catch { Snackbar.Add("Could not cancel session.", Severity.Error); }
+    }
+}

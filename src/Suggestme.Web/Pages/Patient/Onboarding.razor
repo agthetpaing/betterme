@@ -1,0 +1,143 @@
+@page "/patient/onboarding"
+@attribute [Authorize(Roles = "Patient")]
+@inject IApiClient Api
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Onboarding — BetterMe</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-8">
+    <MudText Typo="Typo.h4" Class="page-title text-center">Welcome to BetterMe</MudText>
+    <MudText Typo="Typo.body1" Class="page-subtitle text-center">Help us personalize your experience — Step @(_step + 1) of 4</MudText>
+
+    <MudPaper Elevation="2" Class="pa-8 mt-4" Style="border-radius:16px;">
+
+        @* Progress indicator *@
+        <MudProgressLinear Value="@((_step + 1) * 25)" Color="Color.Primary" Rounded="true" Size="Size.Large" Class="mb-6" />
+
+        @if (_step == 0)
+        {
+            <MudText Typo="Typo.h6" Class="mb-4">What are your primary goals?</MudText>
+            @foreach (var goal in _goalOptions)
+            {
+                <MudCheckBox T="bool" Value="@_goalSelections[goal]"
+                             ValueChanged="@(v => _goalSelections[goal] = v)"
+                             Label="@goal" Color="Color.Primary" />
+            }
+        }
+        else if (_step == 1)
+        {
+            <MudText Typo="Typo.h6" Class="mb-4">What challenges are you currently facing?</MudText>
+            @foreach (var challenge in _challengeOptions)
+            {
+                <MudCheckBox T="bool" Value="@_challengeSelections[challenge]"
+                             ValueChanged="@(v => _challengeSelections[challenge] = v)"
+                             Label="@challenge" Color="Color.Secondary" />
+            }
+        }
+        else if (_step == 2)
+        {
+            <MudText Typo="Typo.h6" Class="mb-4">What types of resources do you prefer?</MudText>
+            <MudCheckBox @bind-Value="_prefArticles" Label="Articles & Reading" Color="Color.Primary" T="bool" />
+            <MudCheckBox @bind-Value="_prefVideos" Label="Videos & Guided Content" Color="Color.Primary" T="bool" />
+            <MudCheckBox @bind-Value="_prefExercises" Label="Interactive Exercises" Color="Color.Primary" T="bool" />
+        }
+        else if (_step == 3)
+        {
+            <MudText Typo="Typo.h6" Class="mb-4">Quick self-assessment</MudText>
+
+            <MudText Typo="Typo.body1" Class="mb-2">Sleep Quality: @_sleepQuality (1 = Poor, 5 = Excellent)</MudText>
+            <MudSlider @bind-Value="_sleepQuality" Min="1" Max="5" Step="1" Color="Color.Primary" Class="mb-6" T="int" />
+
+            <MudText Typo="Typo.body1" Class="mb-2">Stress Level: @_stressLevel (1 = Low, 5 = High)</MudText>
+            <MudSlider @bind-Value="_stressLevel" Min="1" Max="5" Step="1" Color="Color.Warning" Class="mb-6" T="int" />
+
+            <MudCheckBox @bind-Value="_hasPreviousTherapy" Label="I have had therapy before" Color="Color.Primary" T="bool" />
+        }
+
+        <div class="d-flex justify-space-between mt-6">
+            <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="PreviousStep" Disabled="@(_step == 0)">
+                Back
+            </MudButton>
+
+            @if (_step < 3)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NextStep">
+                    Next
+                </MudButton>
+            }
+            else
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" OnClick="Submit" Disabled="_loading">
+                    @if (_loading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    Complete Setup
+                </MudButton>
+            }
+        </div>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private int _step = 0;
+    private bool _loading;
+
+    private readonly string[] _goalOptions = { "Reduce Anxiety", "Improve Sleep", "Manage Stress", "Build Confidence", "Improve Relationships", "Personal Growth", "Mindfulness" };
+    private readonly string[] _challengeOptions = { "Work Stress", "Relationship Issues", "Loneliness", "Low Motivation", "Overthinking", "Sleep Problems", "Grief", "Life Transitions" };
+
+    private Dictionary<string, bool> _goalSelections = new();
+    private Dictionary<string, bool> _challengeSelections = new();
+
+    private bool _prefArticles = true;
+    private bool _prefVideos = true;
+    private bool _prefExercises;
+
+    private int _sleepQuality = 3;
+    private int _stressLevel = 3;
+    private bool _hasPreviousTherapy;
+
+    protected override void OnInitialized()
+    {
+        foreach (var g in _goalOptions) _goalSelections[g] = false;
+        foreach (var c in _challengeOptions) _challengeSelections[c] = false;
+    }
+
+    private void NextStep() { if (_step < 3) _step++; }
+    private void PreviousStep() { if (_step > 0) _step--; }
+
+    private async Task Submit()
+    {
+        _loading = true;
+        try
+        {
+            var types = new List<ResourceType>();
+            if (_prefArticles) types.Add(ResourceType.Article);
+            if (_prefVideos) types.Add(ResourceType.Video);
+            if (_prefExercises) types.Add(ResourceType.Exercise);
+
+            var request = new OnboardingRequest
+            {
+                PrimaryGoals = _goalSelections.Where(kv => kv.Value).Select(kv => kv.Key).ToList(),
+                CurrentChallenges = _challengeSelections.Where(kv => kv.Value).Select(kv => kv.Key).ToList(),
+                PreferredResourceTypes = types,
+                SleepQuality = _sleepQuality,
+                StressLevel = _stressLevel,
+                HasPreviousTherapy = _hasPreviousTherapy
+            };
+
+            await Api.CompleteOnboardingAsync(request);
+            Snackbar.Add("Great! Your experience is now personalized.", Severity.Success);
+            Navigation.NavigateTo("/patient/dashboard", forceLoad: true);
+        }
+        catch
+        {
+            Snackbar.Add("Something went wrong. Please try again.", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

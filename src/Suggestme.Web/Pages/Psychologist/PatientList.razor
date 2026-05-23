@@ -1,0 +1,79 @@
+﻿@page "/psych/patients"
+@attribute [Authorize(Roles = "Psychologist,Admin")]
+@inject IApiClient Api
+
+<PageTitle>Patients â€” Suggestme</PageTitle>
+
+<MudText Typo="Typo.h5" Class="page-title">Patients</MudText>
+<MudText Class="page-subtitle">View and manage your patients</MudText>
+
+<MudTextField @bind-Value="_search" Placeholder="Search by name or email..." Variant="Variant.Outlined"
+              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+              Immediate="true" DebounceInterval="500" TextChanged="OnSearchChanged" Class="mb-4" />
+
+<MudPaper Elevation="1" Style="border-radius:12px;">
+    <MudTable Items="@_patients" Dense="true" Hover="true" Loading="_loading" Breakpoint="Breakpoint.Sm">
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Email</MudTh>
+            <MudTh>Subscription</MudTh>
+            <MudTh>Onboarded</MudTh>
+            <MudTh>Joined</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">
+                <div class="d-flex align-center gap-2">
+                    <MudAvatar Color="Color.Primary" Size="Size.Small">@context.FirstName[0]</MudAvatar>
+                    @context.FullName
+                </div>
+            </MudTd>
+            <MudTd DataLabel="Email">@context.Email</MudTd>
+            <MudTd DataLabel="Subscription">
+                @if (context.SubscriptionTier == SubscriptionTier.Premium)
+                {
+                    <span class="tier-badge-premium">Premium</span>
+                }
+                else
+                {
+                    <span class="tier-badge-free">Free</span>
+                }
+            </MudTd>
+            <MudTd DataLabel="Onboarded">
+                <MudIcon Icon="@(context.IsOnboarded ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.RadioButtonUnchecked)"
+                         Color="@(context.IsOnboarded ? Color.Success : Color.Default)" Size="Size.Small" />
+            </MudTd>
+            <MudTd DataLabel="Joined">@context.CreatedAt.ToString("MMM dd, yyyy")</MudTd>
+            <MudTd>
+                <MudButton Href="@($"/psych/patients/{context.Id}")" Variant="Variant.Text" Color="Color.Primary" Size="Size.Small">
+                    View Details
+                </MudButton>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText Align="Align.Center" Color="Color.Secondary" Class="pa-4">No patients found.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private List<UserDto> _patients = new();
+    private string? _search;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync() => await LoadPatients();
+
+    private async Task OnSearchChanged(string value)
+    {
+        _search = value;
+        await LoadPatients();
+    }
+
+    private async Task LoadPatients()
+    {
+        _loading = true;
+        try { _patients = await Api.GetPatientsAsync(search: _search); }
+        catch { }
+        finally { _loading = false; }
+    }
+}

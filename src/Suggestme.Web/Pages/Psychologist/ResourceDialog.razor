@@ -1,0 +1,63 @@
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField @bind-Value="Model.Title" Label="Title" Variant="Variant.Outlined" FullWidth="true" Class="mb-3" />
+        <MudTextField @bind-Value="Model.Description" Label="Description" Variant="Variant.Outlined" Lines="4" FullWidth="true" Class="mb-3" />
+        <MudTextField @bind-Value="Model.ContentUrl" Label="Content URL (article link, video embed, or download)" Variant="Variant.Outlined" FullWidth="true" Class="mb-3" />
+        <MudTextField @bind-Value="Model.ThumbnailUrl" Label="Thumbnail URL (optional)" Variant="Variant.Outlined" FullWidth="true" Class="mb-3" />
+
+        <MudSelect @bind-Value="Model.Type" Label="Type" Variant="Variant.Outlined" FullWidth="true" T="ResourceType" Class="mb-3">
+            <MudSelectItem Value="ResourceType.Article" T="ResourceType">Article</MudSelectItem>
+            <MudSelectItem Value="ResourceType.Video" T="ResourceType">Video</MudSelectItem>
+            <MudSelectItem Value="ResourceType.Exercise" T="ResourceType">Exercise</MudSelectItem>
+        </MudSelect>
+
+        <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">Tags</MudText>
+        @foreach (var tag in Tags)
+        {
+            var isSelected = _selectedTagSlugs.Contains(tag.Slug);
+            <MudChip Color="@(isSelected ? Color.Primary : Color.Default)"
+                     Variant="@(isSelected ? Variant.Filled : Variant.Outlined)"
+                     OnClick="@(() => ToggleTag(tag.Slug))" T="string"
+                     Class="mr-1 mb-1">@tag.Name</MudChip>
+        }
+
+        <MudSwitch @bind-Value="Model.IsPublished" Label="Published" Color="Color.Success" Class="mt-4" T="bool" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Cancel</MudButton>
+        <MudButton OnClick="Save" Variant="Variant.Filled" Color="Color.Primary"
+                   Disabled="string.IsNullOrWhiteSpace(Model.Title) || string.IsNullOrWhiteSpace(Model.ContentUrl)">
+            @(IsNew ? "Create" : "Save Changes")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public CreateResourceRequest Model { get; set; } = new();
+    [Parameter] public List<ResourceTagDto> Tags { get; set; } = new();
+    [Parameter] public bool IsNew { get; set; }
+
+    private HashSet<string> _selectedTagSlugs = new();
+
+    protected override void OnInitialized()
+    {
+        _selectedTagSlugs = new HashSet<string>(Model.TagSlugs);
+    }
+
+    private void ToggleTag(string slug)
+    {
+        if (!_selectedTagSlugs.Remove(slug))
+            _selectedTagSlugs.Add(slug);
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Save()
+    {
+        Model.TagSlugs = _selectedTagSlugs.ToList();
+        MudDialog.Close(DialogResult.Ok(Model));
+    }
+}

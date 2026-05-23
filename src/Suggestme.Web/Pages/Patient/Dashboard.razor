@@ -1,0 +1,253 @@
+@page "/patient/dashboard"
+@page "/"
+@attribute [Authorize(Roles = "Patient")]
+@inject IApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>Dashboard — BetterMe</PageTitle>
+
+<MudText Typo="Typo.h5" Class="page-title">Welcome back@(_user != null ? $", {_user.FirstName}" : "")!</MudText>
+<MudText Class="page-subtitle">Here's your wellness overview</MudText>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+    <MudGrid>
+        @* Hero welcome card *@
+        <MudItem xs="12">
+            <div class="hero-card">
+                <MudGrid>
+                    <MudItem xs="12" md="8">
+                        <MudText Typo="Typo.h5" Style="color:white;font-weight:700;">Your mental health matters</MudText>
+                        <MudText Style="color:rgba(255,255,255,0.85);margin-top:8px;">
+                            Take a moment today to check in with yourself. Browse personalized resources or book a session with a psychologist.
+                        </MudText>
+                        <MudButton Href="/patient/resources" Variant="Variant.Filled"
+                                   Style="background:white;color:#2E8B7A;margin-top:16px;" Size="Size.Medium">
+                            Browse Resources
+                        </MudButton>
+                    </MudItem>
+                    <MudItem xs="12" md="4" Class="d-flex align-center justify-center">
+                        <MudIcon Icon="@Icons.Material.Filled.SelfImprovement" Style="font-size:100px;color:rgba(255,255,255,0.3);" />
+                    </MudItem>
+                </MudGrid>
+            </div>
+        </MudItem>
+
+        @* Stats cards *@
+        <MudItem xs="6" md="4">
+            <MudPaper Elevation="1" Class="pa-4 text-center" Style="border-radius:12px;">
+                <MudIcon Icon="@Icons.Material.Filled.LibraryBooks" Color="Color.Primary" />
+                <MudText Class="stat-card-value mt-2">@_resourceCount</MudText>
+                <MudText Class="stat-card-label">Resources Available</MudText>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="6" md="4">
+            <MudPaper Elevation="1" Class="pa-4 text-center" Style="border-radius:12px;">
+                <MudIcon Icon="@Icons.Material.Filled.Mood" Color="Color.Secondary" />
+                @if (_todaysMood.HasValue)
+                {
+                    <MudText Class="stat-card-value mt-2" Style="font-size:28px;">@MoodEmoji(_todaysMood.Value)</MudText>
+                }
+                else
+                {
+                    <MudText Class="stat-card-value mt-2">—</MudText>
+                }
+                <MudText Class="stat-card-label">Today's Mood</MudText>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="6" md="4">
+            <MudPaper Elevation="1" Class="pa-4 text-center" Style="border-radius:12px;">
+                <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Color="Color.Info" />
+                <MudText Class="stat-card-value mt-2">@_upcomingCount</MudText>
+                <MudText Class="stat-card-label">Upcoming Sessions</MudText>
+            </MudPaper>
+        </MudItem>
+
+        @* Unread messages nudge *@
+        @if (_unreadMessages > 0)
+        {
+            <MudItem xs="12">
+                <MudAlert Severity="Severity.Info" Variant="Variant.Filled"
+                          Icon="@Icons.Material.Filled.Message"
+                          Style="border-radius:12px;cursor:pointer;"
+                          NoIcon="false">
+                    <div class="d-flex align-center justify-space-between flex-wrap gap-2">
+                        <span>You have <strong>@_unreadMessages unread message@(_unreadMessages == 1 ? "" : "s")</strong> from your psychologist.</span>
+                        <MudButton Href="/patient/messages" Variant="Variant.Filled"
+                                   Style="background:white;color:#0288d1;" Size="Size.Small">
+                            View Messages
+                        </MudButton>
+                    </div>
+                </MudAlert>
+            </MudItem>
+        }
+
+        @* Upcoming session quick-view *@
+        @if (_nextSession != null)
+        {
+            <MudItem xs="12">
+                <MudPaper Elevation="1" Class="pa-4" Style="border-radius:12px;border-left:4px solid #2E8B7A;">
+                    <div class="d-flex align-center justify-space-between flex-wrap gap-2">
+                        <div class="d-flex align-center gap-3">
+                            <MudIcon Icon="@Icons.Material.Filled.VideoCall" Color="Color.Primary" />
+                            <div>
+                                <MudText Style="font-weight:600;">Next session with Dr. @_nextSession.PsychologistName</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                    @_nextSession.ScheduledAt.ToLocalTime().ToString("dddd, MMMM d 'at' h:mm tt")
+                                    · @_nextSession.DurationMinutes min
+                                </MudText>
+                            </div>
+                        </div>
+                        @if (!string.IsNullOrEmpty(_nextSession.MeetingUrl))
+                        {
+                            <MudButton Href="@_nextSession.MeetingUrl" Target="_blank"
+                                       Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.VideoCall">
+                                Join Session
+                            </MudButton>
+                        }
+                        else
+                        {
+                            <MudButton Href="/patient/sessions" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small">
+                                View Details
+                            </MudButton>
+                        }
+                    </div>
+                </MudPaper>
+            </MudItem>
+        }
+
+        @* Recent resources *@
+        <MudItem xs="12">
+            <MudText Typo="Typo.h6" Class="mb-3">Recommended for you</MudText>
+            <MudGrid>
+                @if (_recentResources.Any())
+                {
+                    @foreach (var resource in _recentResources)
+                    {
+                        <MudItem xs="12" sm="6" md="4">
+                            <MudCard Elevation="1" Class="resource-card-hover" Style="border-radius:12px;">
+                                <MudCardContent>
+                                    <div class="d-flex align-center mb-2">
+                                        <MudChip Color="@GetTypeColor(resource.Type)" Size="Size.Small" Variant="Variant.Filled">
+                                            @resource.Type
+                                        </MudChip>
+                                    </div>
+                                    <MudText Typo="Typo.subtitle1" Style="font-weight:600;">@resource.Title</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-1"
+                                             Style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+                                        @resource.Description
+                                    </MudText>
+                                    <div class="mt-2">
+                                        @foreach (var tag in resource.Tags.Take(3))
+                                        {
+                                            <MudChip Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default" Class="mr-1">@tag</MudChip>
+                                        }
+                                    </div>
+                                </MudCardContent>
+                                <MudCardActions>
+                                    <MudButton Href="@($"/patient/resources/{resource.Id}")" Variant="Variant.Text" Color="Color.Primary" Size="Size.Small">
+                                        View Resource
+                                    </MudButton>
+                                </MudCardActions>
+                            </MudCard>
+                        </MudItem>
+                    }
+                }
+                else
+                {
+                    <MudItem xs="12">
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                            No resources yet. Check back soon!
+                        </MudAlert>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudItem>
+
+    </MudGrid>
+}
+
+@code {
+    private UserDto? _user;
+    private List<ResourceDto> _recentResources = new();
+    private int _resourceCount;
+    private MoodLevel? _todaysMood;
+    private int _upcomingCount;
+    private SessionDto? _nextSession;
+    private int _unreadMessages;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _user = await Api.GetCurrentUserAsync();
+            if (_user != null && !_user.IsOnboarded)
+            {
+                Navigation.NavigateTo("/patient/onboarding", replace: true);
+                return;
+            }
+
+            var resourcesTask  = Api.GetResourcesAsync(page: 1, pageSize: 6);
+            var moodTask       = Api.GetMyMoodAsync(days: 1);
+            var sessionsTask   = Api.GetSessionsAsync();
+            var checkInsTask   = Api.GetMyCheckInsAsync();
+
+            await Task.WhenAll(resourcesTask, moodTask, sessionsTask, checkInsTask);
+
+            var resources = await resourcesTask;
+            _recentResources = resources.Items;
+            _resourceCount   = resources.TotalCount;
+
+            // Today's most recent mood entry
+            var todayEntries = (await moodTask)
+                .Where(m => m.RecordedAt.Date == DateTime.UtcNow.Date)
+                .OrderByDescending(m => m.RecordedAt)
+                .ToList();
+            _todaysMood = todayEntries.FirstOrDefault()?.Level;
+
+            // Unread check-ins
+            var checkIns = await checkInsTask;
+            _unreadMessages = checkIns.Count(c => !c.IsRead);
+
+            // Upcoming confirmed sessions
+            var sessions = await sessionsTask;
+            var upcoming = sessions
+                .Where(s => s.Status == SessionStatus.Confirmed && s.ScheduledAt > DateTime.UtcNow)
+                .OrderBy(s => s.ScheduledAt)
+                .ToList();
+            _upcomingCount = upcoming.Count;
+            _nextSession   = upcoming.FirstOrDefault();
+        }
+        catch { }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private string MoodEmoji(MoodLevel level) => level switch
+    {
+        MoodLevel.VeryLow   => "😔",
+        MoodLevel.Low       => "😕",
+        MoodLevel.Neutral   => "😐",
+        MoodLevel.Good      => "🙂",
+        MoodLevel.Excellent => "😊",
+        _                   => "😐"
+    };
+
+    private Color GetTypeColor(ResourceType type) => type switch
+    {
+        ResourceType.Article  => Color.Primary,
+        ResourceType.Video    => Color.Error,
+        ResourceType.Exercise => Color.Secondary,
+        _                     => Color.Default
+    };
+}

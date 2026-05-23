@@ -1,0 +1,140 @@
+﻿@page "/patient/resources"
+@attribute [Authorize(Roles = "Patient")]
+@inject IApiClient Api
+@inject ISnackbar Snackbar
+
+<PageTitle>Resources â€” Suggestme</PageTitle>
+
+<MudText Typo="Typo.h5" Class="page-title">Resource Library</MudText>
+<MudText Class="page-subtitle">Browse articles, videos, and exercises tailored to your needs</MudText>
+
+@* Filters *@
+<MudPaper Elevation="0" Class="pa-4 mb-4" Style="border-radius:12px;background:#ffffff;">
+    <MudGrid>
+        <MudItem xs="12" sm="4">
+            <MudSelect T="ResourceType?" Value="_selectedType" Label="Type" Variant="Variant.Outlined" Clearable="true"
+                       ValueChanged="@(async (ResourceType? v) => { _selectedType = v; await LoadResources(); })">
+                <MudSelectItem Value="@((ResourceType?)ResourceType.Article)" T="ResourceType?">Articles</MudSelectItem>
+                <MudSelectItem Value="@((ResourceType?)ResourceType.Video)" T="ResourceType?">Videos</MudSelectItem>
+                <MudSelectItem Value="@((ResourceType?)ResourceType.Exercise)" T="ResourceType?">Exercises</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudSelect T="string" Value="_selectedTag" Label="Tag" Variant="Variant.Outlined" Clearable="true"
+                       ValueChanged="@(async (string? v) => { _selectedTag = v; await LoadResources(); })">
+                @foreach (var tag in _tags)
+                {
+                    <MudSelectItem Value="@tag.Slug">@tag.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4" Class="d-flex align-end">
+            <MudText Typo="Typo.body2" Color="Color.Secondary">@_totalCount resources found</MudText>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+    <MudGrid>
+        @foreach (var resource in _resources)
+        {
+            <MudItem xs="12" sm="6" md="4">
+                <MudCard Elevation="1" Class="resource-card-hover" Style="border-radius:12px;height:100%;">
+                    <MudCardContent>
+                        <div class="d-flex justify-space-between align-center mb-2">
+                            <MudChip Color="@GetTypeColor(resource.Type)" Size="Size.Small" Variant="Variant.Filled">
+                                @resource.Type
+                            </MudChip>
+                        </div>
+                        <MudText Typo="Typo.subtitle1" Style="font-weight:600;">@resource.Title</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-1"
+                                 Style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">
+                            @resource.Description
+                        </MudText>
+                        <div class="mt-3">
+                            @foreach (var tag in resource.Tags.Take(3))
+                            {
+                                <MudChip Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default" Class="mr-1">@tag</MudChip>
+                            }
+                        </div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+                            By @resource.AuthorName
+                        </MudText>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Href="@($"/patient/resources/{resource.Id}")" Variant="Variant.Text" Color="Color.Primary" Size="Size.Small">
+                            View Resource
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+
+    @if (_totalPages > 1)
+    {
+        <div class="d-flex justify-center mt-6">
+            <MudPagination Count="@_totalPages" Selected="@_page" SelectedChanged="PageChanged" Color="Color.Primary" />
+        </div>
+    }
+}
+
+@code {
+    private List<ResourceDto> _resources = new();
+    private List<ResourceTagDto> _tags = new();
+    private ResourceType? _selectedType;
+    private string? _selectedTag;
+    private int _page = 1;
+    private int _totalCount;
+    private int _totalPages;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var tagsTask = Api.GetTagsAsync();
+        var resourcesTask = LoadResources();
+        await Task.WhenAll(tagsTask, resourcesTask);
+        _tags = await tagsTask;
+    }
+
+    private async Task LoadResources()
+    {
+        _loading = true;
+        StateHasChanged();
+        try
+        {
+            var result = await Api.GetResourcesAsync(_selectedType, _selectedTag, _page, 12);
+            _resources = result.Items;
+            _totalCount = result.TotalCount;
+            _totalPages = result.TotalPages;
+        }
+        catch
+        {
+            Snackbar.Add("Failed to load resources.", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task PageChanged(int page)
+    {
+        _page = page;
+        await LoadResources();
+    }
+
+    private Color GetTypeColor(ResourceType type) => type switch
+    {
+        ResourceType.Article => Color.Primary,
+        ResourceType.Video => Color.Error,
+        ResourceType.Exercise => Color.Secondary,
+        _ => Color.Default
+    };
+}

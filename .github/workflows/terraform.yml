@@ -46,6 +46,11 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     environment: Prod
+    env:
+      ARM_USE_OIDC: true
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
     defaults:
       run:
         working-directory: ${{ env.TF_WORKING_DIR }}
@@ -64,20 +69,32 @@ jobs:
           terraform_version: 1.7.0
 
       - name: Init
+        env:
+          ARM_OIDC_TOKEN: ${{ env.AZURE_FEDERATED_TOKEN }}
         run: |
           terraform init \
+            -backend-config="client_id=${{ vars.AZURE_CLIENT_ID }}" \
+            -backend-config="tenant_id=${{ vars.AZURE_TENANT_ID }}" \
+            -backend-config="subscription_id=${{ vars.AZURE_SUBSCRIPTION_ID }}" \
             -backend-config="resource_group_name=${{ vars.TF_STATE_RG }}" \
             -backend-config="storage_account_name=${{ vars.TF_STATE_SA }}" \
             -backend-config="container_name=${{ vars.TF_STATE_CONTAINER }}" \
             -backend-config="key=${{ env.TF_STATE_KEY }}"
 
       - name: Plan
+        env:
+          ARM_OIDC_TOKEN: ${{ env.AZURE_FEDERATED_TOKEN }}
         run: terraform plan -no-color -input=false
 
   apply:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: Prod
+    env:
+      ARM_USE_OIDC: true
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
     defaults:
       run:
         working-directory: ${{ env.TF_WORKING_DIR }}
@@ -96,15 +113,24 @@ jobs:
           terraform_version: 1.7.0
 
       - name: Init
+        env:
+          ARM_OIDC_TOKEN: ${{ env.AZURE_FEDERATED_TOKEN }}
         run: |
           terraform init \
+            -backend-config="client_id=${{ vars.AZURE_CLIENT_ID }}" \
+            -backend-config="tenant_id=${{ vars.AZURE_TENANT_ID }}" \
+            -backend-config="subscription_id=${{ vars.AZURE_SUBSCRIPTION_ID }}" \
             -backend-config="resource_group_name=${{ vars.TF_STATE_RG }}" \
             -backend-config="storage_account_name=${{ vars.TF_STATE_SA }}" \
             -backend-config="container_name=${{ vars.TF_STATE_CONTAINER }}" \
             -backend-config="key=${{ env.TF_STATE_KEY }}"
 
       - name: Plan
+        env:
+          ARM_OIDC_TOKEN: ${{ env.AZURE_FEDERATED_TOKEN }}
         run: terraform plan -no-color -input=false -out=tfplan
 
       - name: Apply
+        env:
+          ARM_OIDC_TOKEN: ${{ env.AZURE_FEDERATED_TOKEN }}
         run: terraform apply -no-color -input=false -auto-approve tfplan

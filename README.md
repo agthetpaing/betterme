@@ -58,7 +58,23 @@ infra/
 | `TF_STATE_SA` | `stbettermetfstateae` |
 | `TF_STATE_CONTAINER` | `dev` |
 
-Azure AD federated credentials needed for `repo:agthetpaing/betterme:ref:refs/heads/main` (apply) and optionally `repo:agthetpaing/betterme:pull_request` (plan on PR).
+Azure AD federated credentials (subject must match the workflow — **Prod environment** changes the claim):
+
+| Credential name | Subject | Used by |
+|-----------------|---------|---------|
+| `github-betterme-prod-env` | `repo:agthetpaing/betterme:environment:Prod` | `plan` + `apply` (required) |
+| `github-betterme-pr` | `repo:agthetpaing/betterme:pull_request` | PR `plan` (optional) |
+
+```bash
+APP_ID="<your-sp-client-id>"
+
+az ad app federated-credential create --id $APP_ID --parameters '{
+  "name": "github-betterme-prod-env",
+  "issuer": "https://token.actions.githubusercontent.com",
+  "subject": "repo:agthetpaing/betterme:environment:Prod",
+  "audiences": ["api://AzureADTokenExchange"]
+}'
+```
 
 ### Local apply (optional)
 

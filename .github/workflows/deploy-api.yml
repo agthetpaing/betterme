@@ -1,12 +1,14 @@
 name: Deploy API to Azure Container Apps
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
       - 'src/BetterMe.API/**'
       - 'src/BetterMe.Infrastructure/**'
       - 'src/BetterMe.Shared/**'
+      - '.github/workflows/deploy-api.yml'
 
 env:
   REGISTRY: ghcr.io
@@ -15,12 +17,14 @@ env:
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
+    environment: Prod
     permissions:
       contents: read
       packages: write
+      id-token: write
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -35,17 +39,19 @@ jobs:
           context: ./src
           file: ./src/BetterMe.API/Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
       - name: Deploy to Azure Container Apps
         uses: azure/container-apps-deploy-action@v1
         with:
-          acrName: ''
           containerAppName: betterme-api
           resourceGroup: ${{ secrets.AZURE_RESOURCE_GROUP }}
-          imageToDeploy: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          imageToDeploy: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           registryUrl: ghcr.io
           registryUsername: ${{ github.actor }}
-          registryPassword: ${{ secrets.GITHUB_TOKEN }}
+          # GITHUB_TOKEN expires; use a classic PAT (read:packages) stored as GHCR_TOKEN
+          registryPassword: ${{ secrets.GHCR_TOKEN }}
           targetPort: 8080
           azureCredentials: ${{ secrets.AZURE_CREDENTIALS }}

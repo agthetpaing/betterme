@@ -107,14 +107,25 @@ bash scripts/azure-hosting-bootstrap.sh
 
 That script creates the Container Apps Environment, `betterme-api`, Static Web App, JWT Key Vault secret, and prints GitHub secret values.
 
-Then set GitHub **secrets/variables** (repo or `Prod` environment):
+Then set GitHub **secrets** (repo **or** `Prod` environment — deploy workflows use `environment: Prod`):
 
 | Name | Type | Value |
 |------|------|-------|
 | `AZURE_RESOURCE_GROUP` | Secret | `rg-betterme-dev-ea` |
-| `AZURE_CREDENTIALS` | Secret | SP JSON (`--sdk-auth`) with access to that RG |
+| `AZURE_CREDENTIALS` | Secret | SP JSON from Cloud Shell (`--sdk-auth`) |
+| `GHCR_TOKEN` | Secret | Classic PAT with `read:packages` (Container App image pulls) |
 | `AZURE_STATIC_WEB_APPS_API_TOKEN` | Secret | From bootstrap script / SWA portal |
 | `API_BASE_URL` | Variable | `https://<betterme-api-fqdn>` |
+
+Create deploy credentials in Cloud Shell:
+
+```bash
+az ad sp create-for-rbac --name github-betterme-deploy --role contributor \
+  --scopes /subscriptions/eaa747f1-714a-45ac-af51-957558f36fc9/resourceGroups/rg-betterme-dev-ea \
+  --sdk-auth
+```
+
+Paste the JSON into secret `AZURE_CREDENTIALS`. Then run **Actions → Deploy API to Azure Container Apps → Run workflow**. That builds, pushes to GHCR, and updates `betterme-api` with registry credentials (no manual `az containerapp update`).
 
 EF migrations (add your public IP to Postgres firewall first if needed):
 

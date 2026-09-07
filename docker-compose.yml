@@ -3,17 +3,17 @@ version: '3.8'
 services:
   postgres:
     image: postgres:16
-    container_name: suggestme_db
+    container_name: betterme_db
     environment:
-      POSTGRES_DB: suggestme
-      POSTGRES_USER: suggestme_user
+      POSTGRES_DB: betterme
+      POSTGRES_USER: betterme_user
       POSTGRES_PASSWORD: localdevpassword
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U suggestme_user -d suggestme"]
+      test: ["CMD-SHELL", "pg_isready -U betterme_user -d betterme"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -21,9 +21,9 @@ services:
 
   pgadmin:
     image: dpage/pgadmin4
-    container_name: suggestme_pgadmin
+    container_name: betterme_pgadmin
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@suggestme.local
+      PGADMIN_DEFAULT_EMAIL: admin@betterme.local
       PGADMIN_DEFAULT_PASSWORD: admin
     ports:
       - "5050:80"

@@ -1,0 +1,200 @@
+@page "/patient/mood"
+@attribute [Authorize(Roles = "Patient")]
+@inject IApiClient Api
+@inject ISnackbar Snackbar
+
+<PageTitle>Mood Tracker â€” BetterMe</PageTitle>
+
+<MudText Typo="Typo.h5" Class="page-title">Mood Tracker</MudText>
+<MudText Class="page-subtitle">Check in with yourself daily</MudText>
+
+<MudGrid>
+    @* Quick mood log *@
+    <MudItem xs="12" md="5">
+        <MudPaper Elevation="1" Class="pa-6" Style="border-radius:16px;">
+            <MudText Typo="Typo.h6" Class="mb-4">How are you feeling today?</MudText>
+            <div class="d-flex justify-center" style="gap:12px;">
+                @foreach (var mood in _moods)
+                {
+                    <button class="mood-emoji-btn @(mood.Level == _selectedMood ? "selected" : "")"
+                            @onclick="() => SelectMood(mood.Level)" title="@mood.Label"
+                            style="font-size:32px;background:none;border:2px solid @(mood.Level == _selectedMood ? "#2E8B7A" : "transparent");border-radius:50%;padding:8px;cursor:pointer;transition:all 0.15s;">
+                        @mood.Emoji
+                    </button>
+                }
+            </div>
+            @if (_selectedMood.HasValue)
+            {
+                <MudText Align="Align.Center" Color="Color.Primary" Class="mt-2">@_moods.First(m => m.Level == _selectedMood).Label</MudText>
+                <MudTextField @bind-Value="_moodNote" Label="Add a note (optional)" Variant="Variant.Outlined"
+                              Lines="2" Class="mt-4" FullWidth="true"
+                              Placeholder="What's on your mind?" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-3"
+                           Disabled="_logging" OnClick="LogMood">
+                    @if (_logging)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    Log Mood
+                </MudButton>
+            }
+        </MudPaper>
+    </MudItem>
+
+    @* Chart *@
+    <MudItem xs="12" md="7">
+        <MudPaper Elevation="1" Class="pa-6" Style="border-radius:16px;">
+            <MudText Typo="Typo.h6" Class="mb-4">Last 14 Days</MudText>
+            @if (_chartLoading)
+            {
+                <MudSkeleton Height="250px" />
+            }
+            else if (_chartData.Any())
+            {
+                <MudChart ChartType="ChartType.Line"
+                          ChartSeries="@_series"
+                          XAxisLabels="@_xLabels"
+                          Width="100%" Height="260px"
+                          ChartOptions="@(new ChartOptions { YAxisLines = true, YAxisTicks = 1, MaxNumYAxisTicks = 5 })" />
+                <div class="d-flex justify-center gap-4 mt-2">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">1 = Very Low</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">5 = Excellent</MudText>
+                </div>
+            }
+            else
+            {
+                <div class="d-flex align-center justify-center" style="height:200px;">
+                    <div class="text-center">
+                        <MudIcon Icon="@Icons.Material.Filled.ShowChart" Style="font-size:48px;" Color="Color.Default" />
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">
+                            Log your first mood entry to see your chart!
+                        </MudText>
+                    </div>
+                </div>
+            }
+        </MudPaper>
+    </MudItem>
+
+    @* Recent entries *@
+    <MudItem xs="12">
+        <MudPaper Elevation="1" Class="pa-6" Style="border-radius:16px;">
+            <MudText Typo="Typo.h6" Class="mb-4">Recent Entries</MudText>
+            @if (_entries.Any())
+            {
+                <MudList T="MoodEntryDto" Dense="true">
+                    @foreach (var entry in _entries.Take(20))
+                    {
+                        <MudListItem>
+                            <div class="d-flex align-center gap-3">
+                                <span style="font-size:24px;">@MoodEmoji(entry.Level)</span>
+                                <div style="flex:1;">
+                                    <div class="d-flex justify-space-between">
+                                        <MudText Style="font-weight:600;">@entry.Level</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            @entry.RecordedAt.ToLocalTime().ToString("MMM d, h:mm tt")
+                                        </MudText>
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(entry.Note))
+                                    {
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">@entry.Note</MudText>
+                                    }
+                                </div>
+                            </div>
+                        </MudListItem>
+                        <MudDivider />
+                    }
+                </MudList>
+            }
+            else
+            {
+                <MudText Color="Color.Secondary">No entries yet. Start by logging your mood above!</MudText>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private MoodLevel? _selectedMood;
+    private string? _moodNote;
+    private bool _logging;
+    private bool _chartLoading = true;
+
+    private List<MoodEntryDto> _entries = new();
+    private List<MoodEntryDto> _chartData = new();
+    private List<ChartSeries> _series = new();
+    private string[] _xLabels = Array.Empty<string>();
+
+    private readonly (string Emoji, MoodLevel Level, string Label)[] _moods =
+    {
+        ("ðŸ˜”", MoodLevel.VeryLow,  "Very Low"),
+        ("ðŸ˜•", MoodLevel.Low,      "Low"),
+        ("ðŸ˜", MoodLevel.Neutral,  "Neutral"),
+        ("ðŸ™‚", MoodLevel.Good,     "Good"),
+        ("ðŸ˜Š", MoodLevel.Excellent,"Excellent"),
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _entries = await Api.GetMyMoodAsync(60);
+            BuildChart();
+        }
+        catch { Snackbar.Add("Could not load mood history.", Severity.Error); }
+        finally { _chartLoading = false; }
+    }
+
+    private void SelectMood(MoodLevel level) => _selectedMood = level;
+
+    private async Task LogMood()
+    {
+        if (!_selectedMood.HasValue) return;
+        _logging = true;
+        try
+        {
+            await Api.LogMoodAsync(new LogMoodRequest { Level = _selectedMood.Value, Note = _moodNote });
+            _entries.Insert(0, new MoodEntryDto
+            {
+                Id = Guid.NewGuid(),
+                Level = _selectedMood.Value,
+                Note = _moodNote,
+                RecordedAt = DateTime.UtcNow
+            });
+            BuildChart();
+            Snackbar.Add($"Mood logged: {_moods.First(m => m.Level == _selectedMood).Label}", Severity.Success);
+            _selectedMood = null;
+            _moodNote = null;
+        }
+        catch { Snackbar.Add("Failed to log mood. Please try again.", Severity.Error); }
+        finally { _logging = false; }
+    }
+
+    private void BuildChart()
+    {
+        // Build last 14 days, one data point per day (average if multiple)
+        var today = DateTime.UtcNow.Date;
+        var days = Enumerable.Range(0, 14).Select(i => today.AddDays(-13 + i)).ToList();
+
+        var byDay = _entries
+            .GroupBy(e => e.RecordedAt.Date)
+            .ToDictionary(g => g.Key, g => g.Average(e => (double)e.Level));
+
+        _chartData = _entries.Where(e => e.RecordedAt >= today.AddDays(-13)).ToList();
+        var data = days.Select(d => byDay.TryGetValue(d, out var v) ? v : 0).ToArray();
+        _xLabels = days.Select(d => d.ToString("M/d")).ToArray();
+        _series = new List<ChartSeries>
+        {
+            new ChartSeries { Name = "Mood", Data = data }
+        };
+    }
+
+    private string MoodEmoji(MoodLevel level) => level switch
+    {
+        MoodLevel.VeryLow  => "ðŸ˜”",
+        MoodLevel.Low      => "ðŸ˜•",
+        MoodLevel.Neutral  => "ðŸ˜",
+        MoodLevel.Good     => "ðŸ™‚",
+        MoodLevel.Excellent => "ðŸ˜Š",
+        _ => "ðŸ˜"
+    };
+}

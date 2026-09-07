@@ -7,7 +7,7 @@ output "postgres_fqdn" {
 }
 
 output "postgres_database" {
-  value = azurerm_postgresql_flexible_server_database.suggestme.name
+  value = azurerm_postgresql_flexible_server_database.betterme.name
 }
 
 output "key_vault_uri" {

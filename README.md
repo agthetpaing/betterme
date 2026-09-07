@@ -9,9 +9,9 @@ This repo also encodes a **database golden path**: Terraform follows the same `p
 ```bash
 docker compose up -d
 # If this machine has no .NET 7 runtime: $env:DOTNET_ROLL_FORWARD='LatestMajor'
-dotnet ef database update --project src/Suggestme.Infrastructure --startup-project src/Suggestme.API
-dotnet run --project src/Suggestme.API
-dotnet run --project src/Suggestme.Web
+dotnet ef database update --project src/BetterMe.Infrastructure --startup-project src/BetterMe.API
+dotnet run --project src/BetterMe.API
+dotnet run --project src/BetterMe.Web
 ```
 
 If you previously used `EnsureCreated()`, reset the local volume first so EF can own the schema:
@@ -26,7 +26,7 @@ docker compose up -d
 | API (HTTP) | http://localhost:5062 |
 | API Swagger | https://localhost:7262/swagger |
 | Blazor | https://localhost:7157 |
-| Postgres | localhost:5432 (`suggestme` / `suggestme_user` / `localdevpassword`) |
+| Postgres | localhost:5432 (`betterme` / `betterme_user` / `localdevpassword`) |
 | pgAdmin | http://localhost:5050 |
 
 Apply schema with `dotnet ef database update`. The API does **not** call `Database.Migrate()` on startup — replicas must not race schema changes. Seed data runs in Development only.

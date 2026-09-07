@@ -1,0 +1,156 @@
+@page "/patient/sessions/book"
+@attribute [Authorize(Roles = "Patient")]
+@inject IApiClient Api
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageTitle>Book a Session â€” BetterMe</PageTitle>
+
+<MudText Typo="Typo.h5" Class="page-title">Book a Session</MudText>
+<MudText Class="page-subtitle">Schedule time with one of our psychologists</MudText>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+}
+else if (!_psychologists.Any())
+{
+    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-4">
+        No psychologists are available yet. Please check back soon.
+    </MudAlert>
+}
+else
+{
+    <MudGrid Class="mt-2">
+        @* Step 1: Choose psychologist *@
+        <MudItem xs="12">
+            <MudText Typo="Typo.h6" Class="mb-3">Choose a Psychologist</MudText>
+            <MudGrid>
+                @foreach (var psych in _psychologists)
+                {
+                    var isSelected = _request.PsychologistId == psych.Id;
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudCard Elevation="@(isSelected ? 3 : 1)"
+                                 Style="@($"border-radius:12px;cursor:pointer;border:2px solid {(isSelected ? "#2E8B7A" : "transparent")}")"
+                                 @onclick="() => SelectPsychologist(psych.Id)">
+                            <MudCardContent Class="pa-4">
+                                <div class="d-flex align-center gap-3">
+                                    <MudAvatar Color="Color.Primary" Size="Size.Large">
+                                        @psych.FirstName[0]@psych.LastName[0]
+                                    </MudAvatar>
+                                    <div>
+                                        <MudText Style="font-weight:600;">Dr. @psych.FullName</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">Psychologist</MudText>
+                                        @if (!string.IsNullOrEmpty(psych.Bio))
+                                        {
+                                            <MudText Typo="Typo.body2" Class="mt-1"
+                                                     Style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+                                                @psych.Bio
+                                            </MudText>
+                                        }
+                                    </div>
+                                </div>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudItem>
+
+        @* Step 2: Pick date, time, duration *@
+        @if (!string.IsNullOrEmpty(_request.PsychologistId))
+        {
+            <MudItem xs="12" class="mt-2">
+                <MudText Typo="Typo.h6" Class="mb-3">Choose Date & Time</MudText>
+                <MudPaper Elevation="1" Class="pa-6" Style="border-radius:12px;">
+                    <MudGrid>
+                        <MudItem xs="12" sm="4">
+                            <MudDatePicker Label="Date" @bind-Date="_selectedDate" Variant="Variant.Outlined"
+                                           MinDate="DateTime.Today.AddDays(1)"
+                                           MaxDate="DateTime.Today.AddDays(60)"
+                                           PickerVariant="PickerVariant.Dialog" />
+                        </MudItem>
+                        <MudItem xs="12" sm="4">
+                            <MudTimePicker Label="Time" @bind-Time="_selectedTime" Variant="Variant.Outlined"
+                                           AmPm="true" PickerVariant="PickerVariant.Dialog" />
+                        </MudItem>
+                        <MudItem xs="12" sm="4">
+                            <MudSelect @bind-Value="_request.DurationMinutes" Label="Duration" Variant="Variant.Outlined" T="int">
+                                <MudSelectItem Value="30">30 minutes</MudSelectItem>
+                                <MudSelectItem Value="45">45 minutes</MudSelectItem>
+                                <MudSelectItem Value="60">60 minutes (recommended)</MudSelectItem>
+                                <MudSelectItem Value="90">90 minutes</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="_request.PatientNotes"
+                                          Label="Notes for your psychologist (optional)"
+                                          Variant="Variant.Outlined" Lines="3" FullWidth="true"
+                                          HelperText="Share what you'd like to focus on in the session" />
+                        </MudItem>
+                    </MudGrid>
+
+                    <div class="d-flex justify-end mt-4 gap-3">
+                        <MudButton Href="/patient/sessions" Variant="Variant.Text">Cancel</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   Disabled="@(!CanSubmit || _submitting)"
+                                   OnClick="SubmitBooking">
+                            @if (_submitting)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            }
+                            Request Session
+                        </MudButton>
+                    </div>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+@code {
+    private List<UserDto> _psychologists = new();
+    private BookSessionRequest _request = new() { DurationMinutes = 60 };
+    private DateTime? _selectedDate;
+    private TimeSpan? _selectedTime = new TimeSpan(10, 0, 0);
+    private bool _loading = true;
+    private bool _submitting;
+
+    private bool CanSubmit =>
+        !string.IsNullOrEmpty(_request.PsychologistId)
+        && _selectedDate.HasValue
+        && _selectedTime.HasValue;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _psychologists = await Api.GetPsychologistsAsync(); }
+        catch { Snackbar.Add("Could not load psychologists.", Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private void SelectPsychologist(string id) => _request.PsychologistId = id;
+
+    private async Task SubmitBooking()
+    {
+        if (!CanSubmit) return;
+
+        _request.ScheduledAt = _selectedDate!.Value.Date.Add(_selectedTime!.Value);
+
+        _submitting = true;
+        try
+        {
+            var result = await Api.BookSessionAsync(_request);
+            if (result != null)
+            {
+                Snackbar.Add("Session request sent! You'll be notified when it's confirmed.", Severity.Success);
+                Navigation.NavigateTo("/patient/sessions");
+            }
+            else
+            {
+                Snackbar.Add("Failed to book session. Please try again.", Severity.Error);
+            }
+        }
+        catch { Snackbar.Add("Something went wrong.", Severity.Error); }
+        finally { _submitting = false; }
+    }
+}

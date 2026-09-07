@@ -1,0 +1,82 @@
+@page "/patient/journal"
+@attribute [Authorize(Roles = "Patient")]
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Journal â€” BetterMe</PageTitle>
+
+<MudText Typo="Typo.h5" Class="page-title">Journal</MudText>
+<MudText Class="page-subtitle">A safe space to express your thoughts</MudText>
+
+<MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+           OnClick="OpenNewEntry" Class="mb-4">
+    New Entry
+</MudButton>
+
+@if (_entries.Any())
+{
+    <MudGrid>
+        @foreach (var entry in _entries)
+        {
+            <MudItem xs="12" sm="6" md="4">
+                <MudCard Elevation="1" Style="border-radius:12px;">
+                    <MudCardContent>
+                        <div class="d-flex justify-space-between align-center mb-2">
+                            <MudText Typo="Typo.subtitle1" Style="font-weight:600;">@(entry.Title ?? "Untitled")</MudText>
+                            @if (entry.IsPrivate)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Color="Color.Secondary" />
+                            }
+                        </div>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary"
+                                 Style="display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;">
+                            @entry.Body
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+                            @entry.CreatedAt.ToString("MMM dd, yyyy h:mm tt")
+                        </MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+}
+else
+{
+    <MudPaper Elevation="0" Class="pa-8 text-center" Style="border-radius:16px;background:#ffffff;">
+        <MudIcon Icon="@Icons.Material.Filled.Book" Style="font-size:48px;" Color="Color.Primary" />
+        <MudText Typo="Typo.h6" Class="mt-3">Your journal is empty</MudText>
+        <MudText Color="Color.Secondary" Class="mt-1">Start writing to track your thoughts and feelings.</MudText>
+    </MudPaper>
+}
+
+@code {
+    private List<JournalEntryLocal> _entries = new();
+
+    private class JournalEntryLocal
+    {
+        public string? Title { get; set; }
+        public string Body { get; set; } = string.Empty;
+        public bool IsPrivate { get; set; } = true;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    }
+
+    private async Task OpenNewEntry()
+    {
+        var dialog = await DialogService.ShowAsync<JournalDialog>("New Journal Entry", new DialogParameters(),
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data is JournalDialog.JournalResult jr)
+        {
+            _entries.Insert(0, new JournalEntryLocal
+            {
+                Title = jr.Title,
+                Body = jr.Body,
+                IsPrivate = jr.IsPrivate,
+                CreatedAt = DateTime.UtcNow
+            });
+            Snackbar.Add("Journal entry saved.", Severity.Success);
+        }
+    }
+}

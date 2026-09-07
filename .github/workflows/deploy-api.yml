@@ -4,9 +4,9 @@ on:
   push:
     branches: [main]
     paths:
-      - 'src/Suggestme.API/**'
-      - 'src/Suggestme.Infrastructure/**'
-      - 'src/Suggestme.Shared/**'
+      - 'src/BetterMe.API/**'
+      - 'src/BetterMe.Infrastructure/**'
+      - 'src/BetterMe.Shared/**'
 
 env:
   REGISTRY: ghcr.io
@@ -33,7 +33,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./src
-          file: ./src/Suggestme.API/Dockerfile
+          file: ./src/BetterMe.API/Dockerfile
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 

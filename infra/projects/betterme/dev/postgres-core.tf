@@ -37,8 +37,8 @@ resource "azurerm_postgresql_flexible_server" "core" {
   }
 }
 
-resource "azurerm_postgresql_flexible_server_database" "suggestme" {
-  name      = "suggestme"
+resource "azurerm_postgresql_flexible_server_database" "betterme" {
+  name      = "betterme"
   server_id = azurerm_postgresql_flexible_server.core.id
   charset   = "UTF8"
   collation = "en_US.utf8"
@@ -74,7 +74,7 @@ resource "azurerm_key_vault_secret" "postgresql_username" {
 
 resource "azurerm_key_vault_secret" "postgresql_connection_string" {
   name         = "psql-${local.resource_suffix}-core-connection-string"
-  value        = "Host=${azurerm_postgresql_flexible_server.core.fqdn};Database=suggestme;Username=${local.postgres_admin_username};Password=${random_password.postgresql.result};SSL Mode=Require"
+  value        = "Host=${azurerm_postgresql_flexible_server.core.fqdn};Database=betterme;Username=${local.postgres_admin_username};Password=${random_password.postgresql.result};SSL Mode=Require"
   key_vault_id = module.app_group.key_vault_id
 }
 

@@ -2,7 +2,7 @@
 
 Mental health platform for psychologists and patients. ASP.NET Core API + Blazor WebAssembly, EF Core, PostgreSQL 16.
 
-This repo also encodes a **database golden path**: Terraform follows the same `projects/<group>/<env>` layout as Sportcast, schema is EF migrations (not `EnsureCreated`), and the API exposes health plus a small admin ops surface.
+This repo also encodes a **database golden path**: Terraform uses a `projects/<group>/<env>` layout, schema is EF migrations (not `EnsureCreated`), and the API exposes health plus a small admin ops surface.
 
 ## Local development
 
@@ -33,12 +33,12 @@ Apply schema with `dotnet ef database update`. The API does **not** call `Databa
 
 ## Terraform (isolated Azure `dev`)
 
-`infra/` is the Terraform root (Sportcast shape). It creates a **new** resource group (`rg-betterme-dev-ae`). It does not import or change existing Container Apps / Static Web Apps.
+`infra/` is the Terraform root. It creates a **new** resource group (`rg-betterme-dev-ae`). It does not import or change existing Container Apps / Static Web Apps.
 
 ```
 infra/
   AGENTS.md
-  modules/app-group/           # local stand-in for Terraform.Module.AppGroup
+  modules/app-group/           # resource group, Key Vault, identity
   projects/betterme/dev/
     main.tf                    # locals + module.app_group
     _providers.tf
@@ -56,7 +56,7 @@ terraform plan
 # terraform destroy
 ```
 
-Before apply, add your public IP to `postgres_firewall_rules` in `postgres-core.tf` (named like `Allow-Dev-Home`). Admin credentials land in Key Vault. State is local and gitignored; swap in an `azurerm` backend + OIDC later to match Sportcast.
+Before apply, add your public IP to `postgres_firewall_rules` in `postgres-core.tf` (named like `Allow-Dev-Home`). Admin credentials land in Key Vault. State is local and gitignored; swap in an `azurerm` backend + OIDC when sharing state.
 
 Connection string secret name: `psql-betterme-dev-ae-core-connection-string`.
 
@@ -70,7 +70,7 @@ Connection string secret name: `psql-betterme-dev-ae-core-connection-string`.
 
 ## How this maps to Xero DRE (5-minute demo)
 
-1. Open `infra/projects/betterme/dev` — same file names as a Sportcast project (`main.tf`, `_providers.tf`, `postgres-core.tf`).
+1. Open `infra/projects/betterme/dev` — env root files are `main.tf`, `_providers.tf`, `postgres-core.tf`.
 2. `terraform plan` — `app_group` (RG, Key Vault, identity) plus golden-path Postgres (backups, diagnostics, tags, secrets in Key Vault).
 3. `docker compose up` + `dotnet ef database update` — schema as code.
 4. Hit `/ready`, then `GET /api/ops/database` as an Admin.

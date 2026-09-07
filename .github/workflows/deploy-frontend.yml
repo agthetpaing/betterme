@@ -1,16 +1,19 @@
 name: Deploy Frontend to Azure Static Web Apps
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
       - 'src/BetterMe.Web/**'
+      - '.github/workflows/deploy-frontend.yml'
 
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
+    environment: Prod
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
@@ -18,7 +21,9 @@ jobs:
           dotnet-version: '7.0.x'
 
       - name: Publish Blazor WASM
-        run: dotnet publish src/BetterMe.Web/BetterMe.Web.csproj -c Release -o publish
+        run: |
+          export DOTNET_ROLL_FORWARD=LatestMajor
+          dotnet publish src/BetterMe.Web/BetterMe.Web.csproj -c Release -o publish
 
       - name: Set production ApiBaseUrl
         env:

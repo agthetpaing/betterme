@@ -1,0 +1,35 @@
+name: Terraform validate
+
+on:
+  pull_request:
+    paths:
+      - 'infra/**'
+      - '.github/workflows/terraform.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/terraform.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/projects/betterme/dev
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.0
+
+      - name: Format
+        run: terraform fmt -check -recursive ../../../
+
+      - name: Init
+        run: terraform init -backend=false
+
+      - name: Validate
+        run: terraform validate

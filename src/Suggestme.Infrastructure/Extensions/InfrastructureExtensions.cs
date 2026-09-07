@@ -12,8 +12,17 @@ public static class InfrastructureExtensions
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration config)
     {
+        var connectionString = config.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
+
         services.AddDbContext<AppDbContext>(options =>
-            options.UseNpgsql(config.GetConnectionString("DefaultConnection")));
+            options.UseNpgsql(connectionString, npgsql =>
+            {
+                npgsql.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
+                npgsql.CommandTimeout(30);
+            }));
+
+        services.AddScoped<IDatabaseOpsService, DatabaseOpsService>();
 
         services.AddIdentity<ApplicationUser, IdentityRole>(options =>
         {

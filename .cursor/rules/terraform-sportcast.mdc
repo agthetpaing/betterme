@@ -1,0 +1,26 @@
+---
+description: Sportcast-shaped Terraform layout and formatting for BetterMe infra
+globs: infra/**/*.tf
+alwaysApply: false
+---
+
+# Terraform (Sportcast pattern)
+
+- Roots live at `infra/projects/<group>/<env>/`.
+- Plumbing files are `_providers.tf` and `_data.tf`. Module plumbing is `main.tf`, `_variables.tf`, `_outputs.tf`.
+- `main.tf` holds only `locals` and `module.app_group`.
+- One resource family per file (`postgres-*.tf`, `log-analytics.tf`, `app-*.tf`).
+- Tags always include `environment`, `owner`, `project`. Pass `local.common_tags`.
+- Postgres names: `psql-${local.resource_suffix}-<purpose>`. Store admin secrets in Key Vault. Use `lifecycle.ignore_changes` on `zone` and `storage_mb`.
+- Run `terraform fmt -recursive infra` before commit (2-space indent, aligned `=`).
+- Do not copy Sportcast ADO git module URLs, tenant IDs, or VPN IPs.
+- Data-source context uses `/** ... */` block comments.
+
+```hcl
+# BAD — generic env folder and a postgres module
+# infra/envs/dre-dev/main.tf → module "postgres"
+
+# GOOD
+# infra/projects/betterme/dev/main.tf          locals + app_group
+# infra/projects/betterme/dev/postgres-core.tf inline Flexible Server
+```

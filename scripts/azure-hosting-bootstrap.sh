@@ -76,7 +76,7 @@ if ! az containerapp show -n "$APP" -g "$RG" &>/dev/null; then
       "Jwt__Issuer=BetterMe.API" \
       "Jwt__Audience=BetterMe.Web"
 else
-  echo "    $APP already exists — updating secrets/env"
+  echo "    $APP already exists β€” updating secrets/env"
 fi
 
 # Key Vault references require the system/user-assigned identity on the app
@@ -135,7 +135,7 @@ echo ""
 echo "  For deploy-api.yml, create SP credentials (or reuse github-betterme-terraform with a client secret):"
 echo "    az ad sp create-for-rbac --name github-betterme-deploy --role contributor \\"
 echo "      --scopes /subscriptions/$SUB_ID/resourceGroups/$RG --sdk-auth"
-echo "    → store entire JSON as SECRET AZURE_CREDENTIALS"
+echo "    β†’ store entire JSON as SECRET AZURE_CREDENTIALS"
 echo ""
 echo "  SWA deployment token:"
 echo "  $SWA_TOKEN"

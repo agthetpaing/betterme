@@ -4,6 +4,10 @@ Mental health platform for psychologists and patients. ASP.NET Core API + Blazor
 
 This repo also encodes a **database golden path**: Terraform uses a `projects/<group>/<env>` layout, schema is EF migrations (not `EnsureCreated`), and the API exposes health plus a small admin ops surface.
 
+## Live demo (Azure)
+
+Public app: [https://ambitious-pond-095898400.5.azurestaticapps.net/login](https://ambitious-pond-095898400.5.azurestaticapps.net/login)
+
 ## Local development
 
 ```bash
@@ -29,7 +33,7 @@ docker compose up -d
 | Postgres | localhost:5432 (`betterme` / `betterme_user` / `localdevpassword`) |
 | pgAdmin | http://localhost:5050 |
 
-Apply schema with `dotnet ef database update`. The API does **not** call `Database.Migrate()` on startup — replicas must not race schema changes. Seed data runs in Development only.
+Schema is EF migrations in git. The API applies pending migrations on startup (single replica), then seeds roles. Resource seed data runs in Development only.
 
 ## Terraform (Azure `dev` — eastasia)
 
@@ -127,7 +131,7 @@ az ad sp create-for-rbac --name github-betterme-deploy --role contributor \
 
 Paste the JSON into secret `AZURE_CREDENTIALS`. Then run **Actions → Deploy API to Azure Container Apps → Run workflow**. That builds, pushes to GHCR, and updates `betterme-api` with registry credentials (no manual `az containerapp update`).
 
-EF migrations (add your public IP to Postgres firewall first if needed):
+The API applies pending EF migrations on startup, so a Container App deploy is enough for a fresh server. To apply from a workstation instead, add your public IP to the Postgres firewall first:
 
 ```bash
 export ConnectionStrings__DefaultConnection="$(az keyvault secret show \

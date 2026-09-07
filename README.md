@@ -20,11 +20,11 @@ flowchart TB
     Browser[Browser]
   end
 
-  subgraph azure [Azure (eastasia)]
-    SWA[Static Web App<br/>Blazor WASM]
-    API[Container App<br/>BetterMe.API]
-    PG[(PostgreSQL 16<br/>Flexible Server)]
-    KV[Key Vault<br/>secrets]
+  subgraph azure ["Azure (eastasia)"]
+    SWA["Static Web App<br/>Blazor WASM"]
+    API["Container App<br/>BetterMe.API"]
+    PG[("PostgreSQL 16<br/>Flexible Server")]
+    KV["Key Vault<br/>secrets"]
     LAW[Log Analytics]
   end
 

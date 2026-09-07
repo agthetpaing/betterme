@@ -1,6 +1,6 @@
 # infra
 
-Terraform root for BetterMe. Layout matches [Terraform.Sportcast](https://github.com) `projects/<group>/<env>` conventions. See [AGENTS.md](AGENTS.md).
+Terraform root for BetterMe. Layout is `projects/<group>/<env>`. See [AGENTS.md](AGENTS.md).
 
 ```bash
 cd projects/betterme/dev

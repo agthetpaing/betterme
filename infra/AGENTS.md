@@ -1,13 +1,13 @@
 # BetterMe Terraform
 
-Mirrors the Sportcast Terraform layout. `infra/` is the Terraform root so it does not collide with `src/`.
+`infra/` is the Terraform root so it does not collide with `src/`.
 
 ## Environment and Structure
 
 - Project path: `projects/<group>/<env>/` (example: `projects/betterme/dev/`).
 - Common envs: `dev`, `uat`, `prod`. Only `dev` is scaffolded.
 - Typical files in each env: `main.tf`, `_providers.tf`, `_data.tf`, plus resource files (for example `postgres-*.tf`, `log-analytics.tf`, `app-*.tf`).
-- Reusable modules live in `modules/` (local stand-in for Sportcast's `Terraform.Module.*` repos).
+- Reusable modules live in `modules/`.
 - Module plumbing: `main.tf`, `_variables.tf`, `_outputs.tf`.
 
 ## Common Tasks

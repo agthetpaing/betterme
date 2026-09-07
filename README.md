@@ -31,34 +31,54 @@ docker compose up -d
 
 Apply schema with `dotnet ef database update`. The API does **not** call `Database.Migrate()` on startup — replicas must not race schema changes. Seed data runs in Development only.
 
-## Terraform (isolated Azure `dev`)
+## Terraform (Azure `dev` — eastasia)
 
-`infra/` is the Terraform root. It creates a **new** resource group (`rg-betterme-dev-ae`). It does not import or change existing Container Apps / Static Web Apps.
+`infra/` provisions the database platform: resource group, Key Vault, PostgreSQL Flexible Server 16, Log Analytics. Region is **eastasia** (`betterme-dev-ea`). CI applies on push to `main` via GitHub Actions (OIDC + **Prod** environment).
 
 ```
 infra/
   AGENTS.md
-  modules/app-group/           # resource group, Key Vault, identity
+  modules/app-group/
   projects/betterme/dev/
-    main.tf                    # locals + module.app_group
+    main.tf
     _providers.tf
-    _data.tf
-    postgres-core.tf           # inline Flexible Server 16
+    backend.hcl.example
+    postgres-core.tf
     log-analytics.tf
 ```
 
+### GitHub **Prod** environment variables
+
+| Variable | Value |
+|----------|-------|
+| `AZURE_CLIENT_ID` | SP app ID (OIDC) |
+| `AZURE_TENANT_ID` | Tenant ID |
+| `AZURE_SUBSCRIPTION_ID` | Subscription ID |
+| `TF_STATE_RG` | `rg-betterme-tfstate-sea` |
+| `TF_STATE_SA` | `stbettermetfstateae` |
+| `TF_STATE_CONTAINER` | `dev` |
+
+Azure AD federated credentials needed for `repo:agthetpaing/betterme:ref:refs/heads/main` (apply) and optionally `repo:agthetpaing/betterme:pull_request` (plan on PR).
+
+### Local apply (optional)
+
 ```bash
 cd infra/projects/betterme/dev
-terraform init
-terraform fmt -recursive ../../..
+cp backend.hcl.example backend.hcl
+az login
+terraform init -backend-config=backend.hcl
 terraform plan
-# terraform apply    # optional demo — Burstable B1ms, destroy afterwards
-# terraform destroy
+terraform apply
 ```
 
-Before apply, add your public IP to `postgres_firewall_rules` in `postgres-core.tf` (named like `Allow-Dev-Home`). Admin credentials land in Key Vault. State is local and gitignored; swap in an `azurerm` backend + OIDC when sharing state.
+After apply, run migrations against Azure Postgres:
 
-Connection string secret name: `psql-betterme-dev-ae-core-connection-string`.
+```bash
+az keyvault secret show --vault-name kv-betterme-dev-ea \
+  --name psql-betterme-dev-ea-core-connection-string --query value -o tsv
+```
+
+Connection string secret: `psql-betterme-dev-ea-core-connection-string`.
 
 ## Ops and health
 
@@ -71,7 +91,7 @@ Connection string secret name: `psql-betterme-dev-ae-core-connection-string`.
 ## How this maps to Xero DRE (5-minute demo)
 
 1. Open `infra/projects/betterme/dev` — env root files are `main.tf`, `_providers.tf`, `postgres-core.tf`.
-2. `terraform plan` — `app_group` (RG, Key Vault, identity) plus golden-path Postgres (backups, diagnostics, tags, secrets in Key Vault).
+2. Push to `main` or run `terraform plan` — `app_group` plus golden-path Postgres in **eastasia**.
 3. `docker compose up` + `dotnet ef database update` — schema as code.
 4. Hit `/ready`, then `GET /api/ops/database` as an Admin.
 5. Azure → AWS: Flexible Server ≈ RDS / Aurora Postgres; diagnostic settings ≈ Enhanced Monitoring; Key Vault ≈ Secrets Manager; the module interface is the portable part.

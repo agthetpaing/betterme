@@ -6,6 +6,7 @@ locals {
     to reach the server from a workstation.
   */
   postgres_firewall_rules = {
+    Allow-Azure-Services = "0.0.0.0"
     # Allow-Dev-Home = "x.x.x.x"
   }
 }

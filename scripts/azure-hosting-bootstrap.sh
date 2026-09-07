@@ -27,6 +27,15 @@ IMAGE="${CONTAINER_IMAGE:-ghcr.io/agthetpaing/betterme/betterme-api:latest}"
 echo "==> Using subscription $SUB_ID"
 az account set --subscription "$SUB_ID"
 
+# Terraform applied as the GitHub SP, so only that principal has KV access policies.
+# Grant the signed-in Cloud Shell user secrets access (control-plane; needs Contributor on the vault/RG).
+USER_OID=$(az ad signed-in-user show --query id -o tsv)
+echo "==> Grant Key Vault secrets access to signed-in user ($USER_OID)"
+az keyvault set-policy --name "$KV" \
+  --object-id "$USER_OID" \
+  --secret-permissions get list set delete \
+  --only-show-errors >/dev/null
+
 echo "==> Ensure JWT signing key in Key Vault"
 if ! az keyvault secret show --vault-name "$KV" --name "$JWT_SECRET_NAME" &>/dev/null; then
   JWT_VALUE=$(openssl rand -base64 48 | tr -d '\n')
@@ -76,7 +85,7 @@ if ! az containerapp show -n "$APP" -g "$RG" &>/dev/null; then
       "Jwt__Issuer=BetterMe.API" \
       "Jwt__Audience=BetterMe.Web"
 else
-  echo "    $APP already exists β€” updating secrets/env"
+  echo "    $APP already exists Ξ²β‚¬β€ updating secrets/env"
 fi
 
 # Key Vault references require the system/user-assigned identity on the app
@@ -135,7 +144,7 @@ echo ""
 echo "  For deploy-api.yml, create SP credentials (or reuse github-betterme-terraform with a client secret):"
 echo "    az ad sp create-for-rbac --name github-betterme-deploy --role contributor \\"
 echo "      --scopes /subscriptions/$SUB_ID/resourceGroups/$RG --sdk-auth"
-echo "    β†’ store entire JSON as SECRET AZURE_CREDENTIALS"
+echo "    Ξ²β€ β€™ store entire JSON as SECRET AZURE_CREDENTIALS"
 echo ""
 echo "  SWA deployment token:"
 echo "  $SWA_TOKEN"

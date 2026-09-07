@@ -20,6 +20,17 @@ jobs:
       - name: Publish Blazor WASM
         run: dotnet publish src/BetterMe.Web/BetterMe.Web.csproj -c Release -o publish
 
+      - name: Set production ApiBaseUrl
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+        run: |
+          if [ -z "$API_BASE_URL" ]; then
+            echo "API_BASE_URL variable is required (Container App HTTPS URL)"
+            exit 1
+          fi
+          printf '{"ApiBaseUrl":"%s"}\n' "$API_BASE_URL" > publish/wwwroot/appsettings.json
+          cat publish/wwwroot/appsettings.json
+
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:

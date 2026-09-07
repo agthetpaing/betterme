@@ -96,6 +96,35 @@ az keyvault secret show --vault-name kv-betterme-dev-ea \
 
 Connection string secret: `psql-betterme-dev-ea-core-connection-string`.
 
+### App hosting (personal Azure — Cloud Shell only)
+
+Do **not** run these against a work/Sportcast `az` login. Use **Azure Cloud Shell** on **Azure for Students**.
+
+```bash
+# From repo root in Cloud Shell (or copy scripts/azure-hosting-bootstrap.sh)
+bash scripts/azure-hosting-bootstrap.sh
+```
+
+That script creates the Container Apps Environment, `betterme-api`, Static Web App, JWT Key Vault secret, and prints GitHub secret values.
+
+Then set GitHub **secrets/variables** (repo or `Prod` environment):
+
+| Name | Type | Value |
+|------|------|-------|
+| `AZURE_RESOURCE_GROUP` | Secret | `rg-betterme-dev-ea` |
+| `AZURE_CREDENTIALS` | Secret | SP JSON (`--sdk-auth`) with access to that RG |
+| `AZURE_STATIC_WEB_APPS_API_TOKEN` | Secret | From bootstrap script / SWA portal |
+| `API_BASE_URL` | Variable | `https://<betterme-api-fqdn>` |
+
+EF migrations (add your public IP to Postgres firewall first if needed):
+
+```bash
+export ConnectionStrings__DefaultConnection="$(az keyvault secret show \
+  --vault-name kv-betterme-dev-ea \
+  --name psql-betterme-dev-ea-core-connection-string --query value -o tsv)"
+dotnet ef database update --project src/BetterMe.Infrastructure --startup-project src/BetterMe.API
+```
+
 ## Ops and health
 
 | Endpoint | Auth | Meaning |

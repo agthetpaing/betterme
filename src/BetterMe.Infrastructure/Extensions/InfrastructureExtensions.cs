@@ -12,8 +12,7 @@ public static class InfrastructureExtensions
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration config)
     {
-        var connectionString = config.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
+        var connectionString = PostgresConnectionString.FromConfiguration(config);
 
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>

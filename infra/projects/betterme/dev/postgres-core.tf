@@ -75,7 +75,7 @@ resource "azurerm_key_vault_secret" "postgresql_username" {
 
 resource "azurerm_key_vault_secret" "postgresql_connection_string" {
   name         = "psql-${local.resource_suffix}-core-connection-string"
-  value        = "Host=${azurerm_postgresql_flexible_server.core.fqdn};Database=betterme;Username=${local.postgres_admin_username};Password=${random_password.postgresql.result};SSL Mode=Require"
+  value        = "Host=${azurerm_postgresql_flexible_server.core.fqdn};Database=betterme;Username=${local.postgres_admin_username};Password=${random_password.postgresql.result};SSL Mode=Require;Trust Server Certificate=true"
   key_vault_id = module.app_group.key_vault_id
 }
 

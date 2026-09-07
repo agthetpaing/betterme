@@ -1,4 +1,5 @@
 using System.Text;
+using BetterMe.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -54,8 +55,7 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddApiHealthChecks(this IServiceCollection services, IConfiguration config)
     {
-        var connectionString = config.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
+        var connectionString = PostgresConnectionString.FromConfiguration(config);
 
         services.AddHealthChecks()
             .AddNpgSql(connectionString, name: "postgres", tags: new[] { "ready" });

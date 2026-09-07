@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BetterMe.Infrastructure.Data;
 using BetterMe.Infrastructure.Entities;
+using BetterMe.Infrastructure.Security;
 using BetterMe.Shared.DTOs.Mood;
 using System.Security.Claims;
 
@@ -61,6 +62,9 @@ public class MoodController : ControllerBase
     [Authorize(Roles = "Psychologist,Admin")]
     public async Task<IActionResult> GetPatientMood(string patientId, [FromQuery] int days = 60)
     {
+        var allowed = await PatientAccess.CanAccessAsync(_db, GetUserId(), User.IsInRole("Admin"), patientId);
+        if (!allowed) return Forbid();
+
         var since = DateTime.UtcNow.AddDays(-days);
 
         var entries = await _db.MoodEntries

@@ -9,4 +9,5 @@ public interface ITokenService
     Task StoreRefreshTokenAsync(string userId, string token, int expiryDays);
     Task<bool> ValidateRefreshTokenAsync(string userId, string token);
     Task RevokeRefreshTokenAsync(string userId, string token);
+    string? GetUserIdFromAccessToken(string token);
 }

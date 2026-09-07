@@ -5,6 +5,7 @@ using BetterMe.Infrastructure.Data;
 using BetterMe.Infrastructure.Entities;
 using BetterMe.Shared.DTOs.Sessions;
 using BetterMe.Shared.Enums;
+using BetterMe.Shared.Validation;
 using System.Security.Claims;
 
 namespace BetterMe.API.Controllers;
@@ -27,6 +28,7 @@ public class SessionsController : ControllerBase
     {
         var userId = GetUserId();
         var role = GetUserRole();
+        if (role == null) return Forbid();
 
         var query = _db.Sessions
             .Include(s => s.Patient)
@@ -44,7 +46,7 @@ public class SessionsController : ControllerBase
             .OrderByDescending(s => s.ScheduledAt)
             .ToListAsync();
 
-        return Ok(sessions.Select(MapToDto));
+        return Ok(sessions.Select(s => MapToDto(s, includePsychologistNotes: CanSeePsychologistNotes())));
     }
 
     /// <summary>Patient books a session with a psychologist.</summary>
@@ -79,7 +81,7 @@ public class SessionsController : ControllerBase
         await _db.Entry(session).Reference(s => s.Patient).LoadAsync();
         await _db.Entry(session).Reference(s => s.Psychologist).LoadAsync();
 
-        return CreatedAtAction(nameof(GetSession), new { id = session.Id }, MapToDto(session));
+        return CreatedAtAction(nameof(GetSession), new { id = session.Id }, MapToDto(session, includePsychologistNotes: false));
     }
 
     [HttpGet("{id:guid}")]
@@ -96,7 +98,7 @@ public class SessionsController : ControllerBase
         if (session.PatientId != userId && session.PsychologistId != userId)
             return Forbid();
 
-        return Ok(MapToDto(session));
+        return Ok(MapToDto(session, includePsychologistNotes: CanSeePsychologistNotes()));
     }
 
     /// <summary>Psychologist confirms the session and provides a meeting URL.</summary>
@@ -109,6 +111,9 @@ public class SessionsController : ControllerBase
 
         if (session.Status != SessionStatus.Pending)
             return BadRequest("Only pending sessions can be confirmed.");
+
+        if (!MeetingUrl.IsAllowed(request.MeetingUrl))
+            return BadRequest("Meeting URL must be an https address.");
 
         session.Status = SessionStatus.Confirmed;
         session.MeetingUrl = request.MeetingUrl;
@@ -197,12 +202,17 @@ public class SessionsController : ControllerBase
         ?? User.FindFirst("sub")?.Value
         ?? throw new UnauthorizedAccessException();
 
-    private string GetUserRole() =>
+    private string? GetUserRole() =>
         User.FindFirst(ClaimTypes.Role)?.Value
-        ?? User.FindFirst("role")?.Value
-        ?? "Patient";
+        ?? User.FindFirst("role")?.Value;
 
-    private static SessionDto MapToDto(Session s) => new()
+    private bool CanSeePsychologistNotes()
+    {
+        var role = GetUserRole();
+        return role is "Psychologist" or "Admin";
+    }
+
+    private static SessionDto MapToDto(Session s, bool includePsychologistNotes) => new()
     {
         Id = s.Id,
         PatientId = s.PatientId,
@@ -214,7 +224,7 @@ public class SessionsController : ControllerBase
         Status = s.Status,
         MeetingUrl = s.MeetingUrl,
         PatientNotes = s.PatientNotes,
-        PsychologistNotes = s.PsychologistNotes,
+        PsychologistNotes = includePsychologistNotes ? s.PsychologistNotes : null,
         CreatedAt = s.CreatedAt
     };
 }

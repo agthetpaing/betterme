@@ -90,4 +90,33 @@ public class TokenService : ITokenService
             await _db.SaveChangesAsync();
         }
     }
+
+    public string? GetUserIdFromAccessToken(string token)
+    {
+        try
+        {
+            var key = _config["Jwt:Key"]
+                ?? throw new InvalidOperationException("Jwt:Key is not configured.");
+
+            var handler = new JwtSecurityTokenHandler();
+            var principal = handler.ValidateToken(token, new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = false,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = _config["Jwt:Issuer"],
+                ValidAudience = _config["Jwt:Audience"],
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+                ClockSkew = TimeSpan.Zero
+            }, out _);
+
+            return principal.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+                ?? principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }

@@ -12,7 +12,7 @@ terraform {
     }
   }
 
-  # Weekend default: local state (gitignored). To match Sportcast later:
+  # Local state (gitignored). Remote backend later:
   # backend "azurerm" {
   #   use_oidc         = true
   #   use_azuread_auth = true

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using BetterMe.Infrastructure.Entities;
 using BetterMe.Infrastructure.Services;
+using BetterMe.Shared.Auth;
 using BetterMe.Shared.DTOs.Auth;
 using BetterMe.Shared.DTOs.Users;
 using BetterMe.Shared.Enums;
@@ -38,6 +39,8 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
+        if (!RegistrationRoles.IsSelfAssignable(request.Role))
+            return BadRequest("Invalid role.");
 
         var user = new ApplicationUser
         {
@@ -54,7 +57,12 @@ public class AuthController : ControllerBase
             return BadRequest(result.Errors.Select(e => e.Description));
 
         var roleName = request.Role.ToString();
-        await _userManager.AddToRoleAsync(user, roleName);
+        var roleResult = await _userManager.AddToRoleAsync(user, roleName);
+        if (!roleResult.Succeeded)
+        {
+            await _userManager.DeleteAsync(user);
+            return BadRequest(roleResult.Errors.Select(e => e.Description));
+        }
 
         // Seed a Free subscription for patients
         if (request.Role == UserRole.Patient)
@@ -85,7 +93,7 @@ public class AuthController : ControllerBase
         var user = await _userManager.FindByEmailAsync(request.Email);
         if (user == null) return Unauthorized("Invalid credentials.");
 
-        var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: false);
+        var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true);
         if (!result.Succeeded) return Unauthorized("Invalid credentials.");
 
         user.LastActiveAt = DateTime.UtcNow;
@@ -109,7 +117,7 @@ public class AuthController : ControllerBase
             return Unauthorized("Missing access token.");
 
         var oldAccessToken = authHeader["Bearer ".Length..];
-        var userId = GetUserIdFromExpiredToken(oldAccessToken);
+        var userId = _tokenService.GetUserIdFromAccessToken(oldAccessToken);
         if (userId == null) return Unauthorized("Invalid access token.");
 
         var isValid = await _tokenService.ValidateRefreshTokenAsync(userId, request.RefreshToken);
@@ -158,19 +166,5 @@ public class AuthController : ControllerBase
                 CreatedAt = user.CreatedAt
             }
         };
-    }
-
-    private string? GetUserIdFromExpiredToken(string token)
-    {
-        try
-        {
-            var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
-            var jwt = handler.ReadJwtToken(token);
-            return jwt.Claims.FirstOrDefault(c => c.Type == "sub")?.Value;
-        }
-        catch
-        {
-            return null;
-        }
     }
 }

@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RollForward>LatestMajor</RollForward>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="7.0.*" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.*" />
+    <PackageReference Include="xunit" Version="2.6.*" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.*">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BetterMe.API\BetterMe.API.csproj" />
+    <ProjectReference Include="..\..\src\BetterMe.Infrastructure\BetterMe.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\BetterMe.Shared\BetterMe.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -105,6 +105,7 @@ public class ResourcesController : ControllerBase
             .FirstOrDefaultAsync(r => r.Id == id);
 
         if (resource == null) return NotFound();
+        if (!CanMutate(resource)) return Forbid();
 
         resource.Title = request.Title;
         resource.Description = request.Description;
@@ -132,6 +133,7 @@ public class ResourcesController : ControllerBase
     {
         var resource = await _db.Resources.FindAsync(id);
         if (resource == null) return NotFound();
+        if (!CanMutate(resource)) return Forbid();
 
         _db.Resources.Remove(resource);
         await _db.SaveChangesAsync();
@@ -151,6 +153,9 @@ public class ResourcesController : ControllerBase
         User.FindFirst(ClaimTypes.NameIdentifier)?.Value
         ?? User.FindFirst("sub")?.Value
         ?? throw new UnauthorizedAccessException();
+
+    private bool CanMutate(Resource resource) =>
+        User.IsInRole("Admin") || resource.AuthorId == GetUserId();
 
     private static ResourceDto MapToDto(Resource r) => new()
     {

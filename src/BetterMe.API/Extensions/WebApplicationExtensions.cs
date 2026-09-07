@@ -7,11 +7,12 @@ public static class WebApplicationExtensions
 {
     public static async Task SeedDevelopmentDataAsync(this WebApplication app)
     {
+        using var scope = app.Services.CreateScope();
+        await DataSeeder.SeedRolesAsync(scope.ServiceProvider);
+
         if (!app.Environment.IsDevelopment())
             return;
 
-        using var scope = app.Services.CreateScope();
-        await DataSeeder.SeedRolesAsync(scope.ServiceProvider);
         await DataSeeder.SeedResourcesAsync(scope.ServiceProvider);
     }
 

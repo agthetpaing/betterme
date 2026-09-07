@@ -3,7 +3,7 @@ locals {
 
   /**
     Replace the placeholder with your public IP before apply if you need
-    to reach the server from a workstation. Do not copy Sportcast VPN ranges.
+    to reach the server from a workstation.
   */
   postgres_firewall_rules = {
     # Allow-Dev-Home = "x.x.x.x"

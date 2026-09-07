@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BetterMe.Infrastructure.Data;
 using BetterMe.Infrastructure.Entities;
+using BetterMe.Infrastructure.Security;
 using BetterMe.Shared.DTOs.CheckIns;
+using BetterMe.Shared.Enums;
 using System.Security.Claims;
 
 namespace BetterMe.API.Controllers;
@@ -41,6 +43,13 @@ public class CheckInsController : ControllerBase
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
         var psychId = GetUserId();
+
+        var patient = await _db.Users.FindAsync(request.PatientId);
+        if (patient == null || patient.Role != UserRole.Patient)
+            return BadRequest("Patient not found.");
+
+        var allowed = await PatientAccess.CanAccessAsync(_db, psychId, User.IsInRole("Admin"), request.PatientId);
+        if (!allowed) return Forbid();
 
         var checkIn = new CheckIn
         {

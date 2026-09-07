@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BetterMe.Infrastructure.Data;
 using BetterMe.Infrastructure.Entities;
+using BetterMe.Infrastructure.Security;
 using BetterMe.Shared.DTOs.Users;
 using BetterMe.Shared.Enums;
 using System.Security.Claims;
@@ -94,10 +95,16 @@ public class UsersController : ControllerBase
         [FromQuery] int pageSize = 20,
         [FromQuery] string? search = null)
     {
-        var query = _userManager.Users
+        var query = _db.Users
             .Where(u => u.Role == UserRole.Patient)
             .Include(u => u.Subscription)
             .AsQueryable();
+
+        if (!User.IsInRole("Admin"))
+        {
+            var callerId = GetUserId();
+            query = query.Where(u => u.PatientSessions.Any(s => s.PsychologistId == callerId));
+        }
 
         if (!string.IsNullOrWhiteSpace(search))
             query = query.Where(u => u.FirstName.Contains(search) || u.LastName.Contains(search) || u.Email!.Contains(search));
@@ -117,7 +124,7 @@ public class UsersController : ControllerBase
     [Authorize(Roles = "Patient,Admin")]
     public async Task<IActionResult> GetPsychologists()
     {
-        var psychologists = await _userManager.Users
+        var psychologists = await _db.Users
             .Where(u => u.Role == UserRole.Psychologist)
             .OrderBy(u => u.FirstName)
             .ToListAsync();
@@ -129,11 +136,15 @@ public class UsersController : ControllerBase
     [Authorize(Roles = "Psychologist,Admin")]
     public async Task<IActionResult> GetPatient(string id)
     {
-        var user = await _userManager.Users
+        var user = await _db.Users
             .Include(u => u.Subscription)
             .FirstOrDefaultAsync(u => u.Id == id);
 
-        if (user == null) return NotFound();
+        if (user == null || user.Role != UserRole.Patient) return NotFound();
+
+        var allowed = await PatientAccess.CanAccessAsync(_db, GetUserId(), User.IsInRole("Admin"), id);
+        if (!allowed) return Forbid();
+
         return Ok(MapToDto(user, user.Subscription?.Tier));
     }
 

@@ -1,14 +1,14 @@
 # BetterMe
 
-A mental health platform for psychologists and patients — mood tracking, journaling, session booking, and a curated resource library. Built as a personal project with ASP.NET Core, Blazor WebAssembly, EF Core, and PostgreSQL.
+A mental health platform for psychologists and patients: mood tracking, journaling, session booking, and a curated resource library. Built as a personal project with ASP.NET Core, Blazor WebAssembly, EF Core, and PostgreSQL.
 
 **Live app:** [https://ambitious-pond-095898400.5.azurestaticapps.net/login](https://ambitious-pond-095898400.5.azurestaticapps.net/login)
 
 ## What it does
 
-- **Patients** — log mood, write journal entries, browse resources, book sessions, complete onboarding.
-- **Psychologists** — manage patients, sessions, and published resources.
-- **Admins** — operational visibility via `/api/ops/database` (migrations, connections, `pg_stat_statements`).
+- **Patients**: log mood, write journal entries, browse resources, book sessions, complete onboarding.
+- **Psychologists**: manage patients, sessions, and published resources.
+- **Admins**: operational visibility via `/api/ops/database` (migrations, connections, `pg_stat_statements`).
 
 Auth is JWT-based (access + refresh tokens). Schema changes ship as EF migrations in git.
 
@@ -20,7 +20,7 @@ flowchart TB
     Browser[Browser]
   end
 
-  subgraph azure [Azure — eastasia]
+  subgraph azure [Azure (eastasia)]
     SWA[Static Web App<br/>Blazor WASM]
     API[Container App<br/>BetterMe.API]
     PG[(PostgreSQL 16<br/>Flexible Server)]
@@ -57,7 +57,7 @@ flowchart TB
 | API | ASP.NET Core 7, JWT, Swagger (dev) |
 | Data | EF Core 7, PostgreSQL 16, Npgsql |
 | Infra | Terraform (`infra/`), Azure Container Apps, Static Web Apps, Key Vault |
-| CI/CD | GitHub Actions — Terraform, API deploy, frontend deploy |
+| CI/CD | GitHub Actions: Terraform, API deploy, frontend deploy |
 
 **Repo layout**
 
@@ -97,7 +97,7 @@ The API applies pending EF migrations on startup (single replica), then seeds ro
 
 Infrastructure lives in `infra/` (resource group `rg-betterme-dev-ea`, region **eastasia**). Terraform state is in a separate storage account; CI applies on push to `main` via GitHub OIDC.
 
-**First-time setup** — run in [Azure Cloud Shell](https://shell.azure.com) on your subscription:
+**First-time setup:** run in [Azure Cloud Shell](https://shell.azure.com) on your subscription:
 
 ```bash
 bash scripts/azure-hosting-bootstrap.sh
@@ -123,7 +123,7 @@ Federated credential for Terraform (subject must match `environment: Prod`):
 repo:agthetpaing/betterme:environment:Prod
 ```
 
-**Deploy workflows** — Actions → **Deploy API** or **Deploy Frontend** → Run workflow.
+**Deploy workflows:** Actions → **Deploy API** or **Deploy Frontend** → Run workflow.
 
 Manual Terraform apply (optional):
 

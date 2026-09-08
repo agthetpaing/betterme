@@ -121,7 +121,7 @@ if ! az containerapp show -n "$APP" -g "$RG" &>/dev/null; then
       "ConnectionStrings__DefaultConnection=secretref:db-conn" \
       "Jwt__Key=secretref:jwt-key"
 else
-  echo "    $APP already exists β€” updating secrets/env"
+  echo "    $APP already exists — updating secrets/env"
   az containerapp secret set \
     --name "$APP" \
     --resource-group "$RG" \
@@ -136,6 +136,10 @@ else
       "ConnectionStrings__DefaultConnection=secretref:db-conn" \
       "Jwt__Key=secretref:jwt-key"
 fi
+
+echo "==> Configure health probes on $APP"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+bash "$SCRIPT_DIR/configure-aca-probes.sh" "$APP" "$RG"
 
 API_FQDN=$(az containerapp show -n "$APP" -g "$RG" --query properties.configuration.ingress.fqdn -o tsv)
 API_URL="https://${API_FQDN}"
@@ -171,6 +175,7 @@ echo ""
 echo "  Repository / environment SECRET AZURE_RESOURCE_GROUP = $RG"
 echo "  Repository / environment SECRET AZURE_STATIC_WEB_APPS_API_TOKEN = <copied below>"
 echo "  Repository / environment VARIABLE API_BASE_URL = $API_URL"
+echo "  Repository / environment VARIABLE ALERT_EMAIL = <your email for Azure Monitor alerts>"
 echo ""
 echo "  For deploy-api.yml, create SP credentials (or reuse github-betterme-terraform with a client secret):"
 echo "    az ad sp create-for-rbac --name github-betterme-deploy --role contributor \\"

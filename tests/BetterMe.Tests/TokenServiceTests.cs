@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Primitives;
 using Microsoft.IdentityModel.Tokens;
 using BetterMe.Infrastructure.Entities;
@@ -74,7 +75,7 @@ public class TokenServiceTests
             ["Jwt:AccessTokenExpiryMinutes"] = expiryMinutes
         });
 
-        return new TokenService(config, TestHarness.CreateDb());
+        return new TokenService(config, TestHarness.CreateDb(), NullLogger<TokenService>.Instance);
     }
 
     private static ApplicationUser TestUser(string id) =>

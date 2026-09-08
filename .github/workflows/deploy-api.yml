@@ -55,3 +55,11 @@ jobs:
           registryPassword: ${{ secrets.GHCR_TOKEN }}
           targetPort: 8080
           azureCredentials: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Configure health probes
+        run: bash scripts/configure-aca-probes.sh betterme-api "${{ secrets.AZURE_RESOURCE_GROUP }}"

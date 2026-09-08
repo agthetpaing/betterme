@@ -3,6 +3,8 @@
 @attribute [Authorize(Roles = "Patient")]
 @inject IApiClient Api
 @inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject ILogger<Dashboard> Logger
 
 <PageTitle>Dashboard — BetterMe</PageTitle>
 
@@ -226,7 +228,11 @@ else
             _upcomingCount = upcoming.Count;
             _nextSession   = upcoming.FirstOrDefault();
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to load patient dashboard");
+            Snackbar.Add("Could not load dashboard data.", Severity.Error);
+        }
         finally
         {
             _loading = false;

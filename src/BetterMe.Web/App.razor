@@ -3,37 +3,53 @@
 <MudSnackbarProvider />
 
 <CascadingAuthenticationState>
-    <Router AppAssembly="@typeof(App).Assembly">
-        <Found Context="routeData">
-            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
-                <NotAuthorized>
-                    @if (context.User.Identity?.IsAuthenticated == true)
-                    {
-                        <p>You are not authorized to view this page.</p>
-                    }
-                    else
-                    {
-                        <RedirectToLogin />
-                    }
-                </NotAuthorized>
-            </AuthorizeRouteView>
-            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
-        </Found>
-        <NotFound>
-            <PageTitle>Not found — BetterMe</PageTitle>
-            <LayoutView Layout="@typeof(MainLayout)">
-                <MudContainer MaxWidth="MaxWidth.Small" Class="mt-16 text-center">
-                    <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Color="Color.Primary" Class="mb-4" />
-                    <MudText Typo="Typo.h5">Page not found</MudText>
-                    <MudText Color="Color.Secondary" Class="mt-2">Sorry, there's nothing at this address.</MudText>
-                    <MudButton Href="/" Variant="Variant.Filled" Color="Color.Primary" Class="mt-6">Go Home</MudButton>
-                </MudContainer>
-            </LayoutView>
-        </NotFound>
-    </Router>
+    <ErrorBoundary @ref="_errorBoundary">
+        <ChildContent>
+            <Router AppAssembly="@typeof(App).Assembly">
+                <Found Context="routeData">
+                    <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                        <NotAuthorized>
+                            @if (context.User.Identity?.IsAuthenticated == true)
+                            {
+                                <p>You are not authorized to view this page.</p>
+                            }
+                            else
+                            {
+                                <RedirectToLogin />
+                            }
+                        </NotAuthorized>
+                    </AuthorizeRouteView>
+                    <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+                </Found>
+                <NotFound>
+                    <PageTitle>Not found — BetterMe</PageTitle>
+                    <LayoutView Layout="@typeof(MainLayout)">
+                        <MudContainer MaxWidth="MaxWidth.Small" Class="mt-16 text-center">
+                            <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Color="Color.Primary" Class="mb-4" />
+                            <MudText Typo="Typo.h5">Page not found</MudText>
+                            <MudText Color="Color.Secondary" Class="mt-2">Sorry, there's nothing at this address.</MudText>
+                            <MudButton Href="/" Variant="Variant.Filled" Color="Color.Primary" Class="mt-6">Go Home</MudButton>
+                        </MudContainer>
+                    </LayoutView>
+                </NotFound>
+            </Router>
+        </ChildContent>
+        <ErrorContent>
+            <MudContainer MaxWidth="MaxWidth.Small" Class="mt-16 text-center">
+                <MudIcon Icon="@Icons.Material.Filled.ErrorOutline" Size="Size.Large" Color="Color.Error" Class="mb-4" />
+                <MudText Typo="Typo.h5">Something went wrong</MudText>
+                <MudText Color="Color.Secondary" Class="mt-2">An unexpected error occurred. You can try again.</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-6" OnClick="Recover">Try again</MudButton>
+            </MudContainer>
+        </ErrorContent>
+    </ErrorBoundary>
 </CascadingAuthenticationState>
 
 @code {
+    private ErrorBoundary? _errorBoundary;
+
+    private void Recover() => _errorBoundary?.Recover();
+
     private MudTheme _theme = new MudTheme
     {
         Palette = new PaletteLight

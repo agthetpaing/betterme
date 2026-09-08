@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using BetterMe.Infrastructure.Data;
 using BetterMe.Infrastructure.Entities;
@@ -14,11 +15,13 @@ public class TokenService : ITokenService
 {
     private readonly IConfiguration _config;
     private readonly AppDbContext _db;
+    private readonly ILogger<TokenService> _logger;
 
-    public TokenService(IConfiguration config, AppDbContext db)
+    public TokenService(IConfiguration config, AppDbContext db, ILogger<TokenService> logger)
     {
         _config = config;
         _db = db;
+        _logger = logger;
     }
 
     public string GenerateAccessToken(ApplicationUser user, IList<string> roles)
@@ -114,8 +117,9 @@ public class TokenService : ITokenService
             return principal.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
                 ?? principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to parse user id from access token");
             return null;
         }
     }

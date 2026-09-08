@@ -84,6 +84,7 @@ jobs:
       - name: Plan
         env:
           ARM_OIDC_TOKEN: ${{ env.AZURE_FEDERATED_TOKEN }}
+          TF_VAR_alert_email: ${{ vars.ALERT_EMAIL }}
         run: terraform plan -no-color -input=false
 
   apply:
@@ -128,9 +129,11 @@ jobs:
       - name: Plan
         env:
           ARM_OIDC_TOKEN: ${{ env.AZURE_FEDERATED_TOKEN }}
+          TF_VAR_alert_email: ${{ vars.ALERT_EMAIL }}
         run: terraform plan -no-color -input=false -out=tfplan
 
       - name: Apply
         env:
           ARM_OIDC_TOKEN: ${{ env.AZURE_FEDERATED_TOKEN }}
+          TF_VAR_alert_email: ${{ vars.ALERT_EMAIL }}
         run: terraform apply -no-color -input=false -auto-approve tfplan

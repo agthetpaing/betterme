@@ -3,6 +3,7 @@ using Blazored.LocalStorage;
 using BetterMe.Shared.DTOs.Auth;
 using BetterMe.Web.Authentication;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.Extensions.Logging;
 
 namespace BetterMe.Web.Services;
 
@@ -11,12 +12,18 @@ public class AuthService : IAuthService
     private readonly HttpClient _http;
     private readonly ILocalStorageService _localStorage;
     private readonly AuthenticationStateProvider _authStateProvider;
+    private readonly ILogger<AuthService> _logger;
 
-    public AuthService(HttpClient http, ILocalStorageService localStorage, AuthenticationStateProvider authStateProvider)
+    public AuthService(
+        HttpClient http,
+        ILocalStorageService localStorage,
+        AuthenticationStateProvider authStateProvider,
+        ILogger<AuthService> logger)
     {
         _http = http;
         _localStorage = localStorage;
         _authStateProvider = authStateProvider;
+        _logger = logger;
     }
 
     public async Task<AuthResponse?> LoginAsync(LoginRequest request)
@@ -37,7 +44,7 @@ public class AuthService : IAuthService
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
         {
-            // API unreachable, timeout, or bad response
+            _logger.LogWarning(ex, "Login request failed — API unreachable or timed out");
             return null;
         }
     }
@@ -65,6 +72,7 @@ public class AuthService : IAuthService
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
         {
+            _logger.LogWarning(ex, "Registration request failed — API unreachable or timed out");
             return (null, "Cannot reach the server. Please check your connection.");
         }
     }

@@ -1,6 +1,8 @@
 @page "/psych/patients"
 @attribute [Authorize(Roles = "Psychologist,Admin")]
 @inject IApiClient Api
+@inject ISnackbar Snackbar
+@inject ILogger<PatientList> Logger
 
 <PageTitle>Patients â€” BetterMe</PageTitle>
 
@@ -73,7 +75,11 @@
     {
         _loading = true;
         try { _patients = await Api.GetPatientsAsync(search: _search); }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to load patients");
+            Snackbar.Add("Could not load patients.", Severity.Error);
+        }
         finally { _loading = false; }
     }
 }

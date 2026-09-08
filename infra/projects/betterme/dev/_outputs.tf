@@ -17,3 +17,7 @@ output "key_vault_uri" {
 output "log_analytics_workspace_id" {
   value = azurerm_log_analytics_workspace.this.id
 }
+
+output "monitor_action_group_id" {
+  value = azurerm_monitor_action_group.ops.id
+}

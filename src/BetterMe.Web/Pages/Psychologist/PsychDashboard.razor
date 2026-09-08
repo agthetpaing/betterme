@@ -1,6 +1,8 @@
 @page "/psych/dashboard"
 @attribute [Authorize(Roles = "Psychologist,Admin")]
 @inject IApiClient Api
+@inject ISnackbar Snackbar
+@inject ILogger<PsychDashboard> Logger
 
 <PageTitle>Dashboard â€” BetterMe</PageTitle>
 
@@ -107,7 +109,11 @@ else
             _patients = await patientsTask;
             _resourceCount = (await resourcesTask).TotalCount;
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to load psychologist dashboard");
+            Snackbar.Add("Could not load dashboard data.", Severity.Error);
+        }
         finally { _loading = false; }
     }
 }

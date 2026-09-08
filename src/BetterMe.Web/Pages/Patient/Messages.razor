@@ -2,6 +2,7 @@
 @attribute [Authorize(Roles = "Patient")]
 @inject IApiClient Api
 @inject ISnackbar Snackbar
+@inject ILogger<Messages> Logger
 
 <PageTitle>Messages — BetterMe</PageTitle>
 
@@ -113,8 +114,9 @@ else
             if (firstUnread != null)
                 _expanded.Add(firstUnread.Id);
         }
-        catch
+        catch (Exception ex)
         {
+            Logger.LogWarning(ex, "Failed to load messages");
             Snackbar.Add("Could not load messages.", Severity.Error);
         }
         finally
@@ -150,7 +152,11 @@ else
             item.IsRead = true;
             StateHasChanged();
         }
-        catch { /* silently ignore */ }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to mark check-in {CheckInId} as read", item.Id);
+            Snackbar.Add("Could not mark message as read.", Severity.Error);
+        }
     }
 
     private async Task MarkAllRead()

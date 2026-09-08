@@ -26,6 +26,7 @@ flowchart TB
     PG[("PostgreSQL 16<br/>Flexible Server")]
     KV["Key Vault<br/>secrets"]
     LAW[Log Analytics]
+    AM[Azure Monitor alerts]
   end
 
   subgraph cicd [GitHub Actions]
@@ -43,7 +44,9 @@ flowchart TB
   SWA -.->|ApiBaseUrl| API
   API -->|EF Core| PG
   API -.->|connection string, JWT| KV
+  API -->|stdout JSON| LAW
   PG -->|diagnostics| LAW
+  API -->|metrics| AM
 
   TF -->|OIDC| azure
   TF --> SA
@@ -111,6 +114,7 @@ That creates the Container Apps environment, API app, Static Web App, and prints
 |------|------|---------|
 | `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` | Variable | Terraform OIDC |
 | `TF_STATE_RG` / `TF_STATE_SA` / `TF_STATE_CONTAINER` | Variable | Remote state |
+| `ALERT_EMAIL` | Variable | Azure Monitor action group recipient |
 | `API_BASE_URL` | Variable | Container App HTTPS URL (frontend build) |
 | `AZURE_RESOURCE_GROUP` | Secret | `rg-betterme-dev-ea` |
 | `AZURE_CREDENTIALS` | Secret | Deploy SP JSON (`--sdk-auth`) |
@@ -132,16 +136,37 @@ cd infra/projects/betterme/dev
 cp backend.hcl.example backend.hcl
 az login
 terraform init -backend-config=backend.hcl
-terraform apply
+terraform apply -var="alert_email=you@example.com"
 ```
 
 ## Ops and health
 
 | Endpoint | Auth | Meaning |
 |----------|------|---------|
-| `GET /health` | Anonymous | Process is up |
-| `GET /ready` | Anonymous | Postgres accepts `SELECT 1` |
+| `GET /health` | Anonymous | Liveness — process is up (ACA probe) |
+| `GET /ready` | Anonymous | Readiness — Postgres accepts `SELECT 1` (ACA probe) |
 | `GET /api/ops/database` | Admin JWT | Version, migrations, `pg_stat_activity`, `pg_stat_statements` |
+
+**Logging:** API writes structured JSON to stdout → Container Apps Environment → Log Analytics (`log-betterme-dev-ea`). Auth failures, unhandled exceptions, HTTP method/path/status, and admin ops access are logged. Passwords and tokens are never logged.
+
+Sample Log Analytics query (API console lines):
+
+```kusto
+ContainerAppConsoleLogs_CL
+| where ContainerAppName_s == "betterme-api"
+| where Log_s has "Login" or Log_s has "Unhandled"
+| order by TimeGenerated desc
+| take 50
+```
+
+**Alerts** (Terraform `monitors.tf`, email via `ALERT_EMAIL`):
+
+| Alert | Condition |
+|-------|-----------|
+| API 5xx | More than five 5xx responses in five minutes |
+| API restarts | Replica `RestartCount` > 0 in five minutes |
+
+Scale-to-zero (`min-replicas 0`) is expected idle behaviour and is **not** alerted.
 
 ## Roadmap
 
